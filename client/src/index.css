@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --apple-blue: #0071e3;
+  --apple-blue-hover: #0077ED;
+  --apple-bg: #fbfbfd;
+  --apple-text: #1d1d1f;
+  --apple-text-secondary: #86868b;
+  --apple-border: #d2d2d7;
+  --apple-card-bg: #ffffff;
+  --apple-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+  --apple-shadow-hover: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', 'Roboto', Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--apple-bg);
+  color: var(--apple-text);
+  line-height: 1.47059;
+  letter-spacing: -0.022em;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  letter-spacing: -0.003em;
+  margin-top: 0;
+}
+
+h1 {
+  font-size: 48px;
+  line-height: 1.08349;
+  font-weight: 700;
+  letter-spacing: -0.002em;
+}
+
+h2 {
+  font-size: 32px;
+  line-height: 1.125;
+  font-weight: 600;
+  letter-spacing: 0.004em;
+}
+
+a {
+  color: var(--apple-blue);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+}
