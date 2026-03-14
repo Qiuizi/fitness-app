@@ -1151,6 +1151,91 @@ label {
 }
 
 /* ══════════════════════════════════════════════════
+   个人动态里程碑 Personal Milestones
+══════════════════════════════════════════════════ */
+.personal-milestones {
+  background: linear-gradient(135deg, #5856d6 0%, #0071e3 100%);
+  border-radius: 20px;
+  padding: 20px;
+  margin-bottom: 20px;
+  color: white;
+  box-shadow: 0 8px 32px rgba(88, 86, 214, 0.25);
+}
+
+.pm-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.pm-title {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.9;
+}
+
+.pm-badge {
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(255,255,255,0.2);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.pm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pm-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255,255,255,0.12);
+  border-radius: 14px;
+  padding: 14px;
+  border-left: 4px solid white;
+}
+
+.pm-icon {
+  font-size: 24px;
+}
+
+.pm-content {
+  flex: 1;
+}
+
+.pm-target {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.pm-desc {
+  font-size: 12px;
+  opacity: 0.8;
+  margin-top: 2px;
+}
+
+.pm-action {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  background: white;
+  color: #5856d6;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+}
+
+.pm-action:hover {
+  opacity: 0.9;
+}
+
+/* ══════════════════════════════════════════════════
    今天练什么 TodayCard
 ══════════════════════════════════════════════════ */
 .today-card {
@@ -2106,6 +2191,116 @@ label {
   background: rgba(52,199,89,0.08);
   border-color: rgba(52,199,89,0.25);
   color: #34c759;
+}
+
+/* 语音输入按钮 */
+.voice-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 16px;
+  background: var(--apple-blue);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.voice-btn:hover {
+  transform: scale(1.1);
+}
+
+.voice-btn.listening {
+  background: #ff3b30;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.voice-btn:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+/* 语音识别结果提示 */
+.voice-result-toast {
+  background: rgba(0, 113, 227, 0.1);
+  border: 1px solid rgba(0, 113, 227, 0.3);
+  border-radius: 12px;
+  padding: 10px 16px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: var(--apple-blue);
+  animation: slideDown 0.3s ease;
+}
+
+/* 能量状态选择器 */
+.energy-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--apple-card-bg);
+  border: 1px solid var(--apple-border);
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.energy-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--apple-text-secondary);
+  white-space: nowrap;
+}
+
+.energy-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.energy-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--apple-border);
+  background: transparent;
+  color: var(--apple-border);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.energy-dot.filled {
+  border-color: var(--apple-blue);
+  color: var(--apple-blue);
+}
+
+.energy-dot.active {
+  background: var(--apple-blue);
+  border-color: var(--apple-blue);
+  color: white;
+  transform: scale(1.1);
+}
+
+.energy-dot:hover {
+  transform: scale(1.15);
+}
+
+.energy-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--apple-blue);
+  margin-left: auto;
 }
 
 .set-quick-btns.rep-btns .sqb:hover {

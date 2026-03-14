@@ -22,6 +22,93 @@ const ACHIEVEMENTS = {
   volume_100k:   { icon: '🚀',  name: '十万勇士',   desc: '力量总量超100,000kg' },
 };
 
+// ─── 个人动态里程碑组件 ────────────────────────────────────────────────────────
+const PersonalMilestones = ({ prs, stats }) => {
+  if (!prs || prs.length === 0 || !stats) return null;
+
+  // 根据用户数据生成个人里程碑
+  const generateMilestones = () => {
+    const milestones = [];
+    
+    // 检查是否有停滞的动作（超过8周没有进步）
+    prs.forEach(pr => {
+      const lastDate = new Date(pr.date);
+      const weeksStagnant = Math.floor((Date.now() - lastDate) / (7 * 24 * 60 * 60 * 1000));
+      
+      if (weeksStagnant >= 6) {
+        const targetWeight = pr.weight + 2.5;
+        milestones.push({
+          id: `breakthrough_${pr.exercise}`,
+          icon: '🎯',
+          title: '突破机会',
+          desc: `${pr.exercise} 停滞${weeksStagnant}周`,
+          target: `${targetWeight}kg`,
+          action: '挑战',
+          color: '#5856d6',
+        });
+      }
+    });
+    
+    // 连续训练天数里程碑
+    if (stats.streak > 0) {
+      const nextStreak = [3, 7, 14, 30, 50, 100].find(s => s > stats.streak);
+      if (nextStreak) {
+        milestones.push({
+          id: `streak_${nextStreak}`,
+          icon: '🔥',
+          title: '连续打卡',
+          desc: `再训练 ${nextStreak - stats.streak} 天`,
+          target: `${nextStreak} 天`,
+          action: '加油',
+          color: '#ff9500',
+        });
+      }
+    }
+    
+    // 训练量里程碑
+    if (stats.totalVolume > 0) {
+      const nextVolume = [1000, 5000, 10000, 50000, 100000].find(v => v > stats.totalVolume);
+      if (nextVolume) {
+        milestones.push({
+          id: `volume_${nextVolume}`,
+          icon: '🏗️',
+          title: '力量积累',
+          desc: '累计训练量',
+          target: `${(nextVolume / 1000).toFixed(0)}吨`,
+          action: '加油',
+          color: '#0071e3',
+        });
+      }
+    }
+    
+    return milestones.slice(0, 3); // 最多显示3个
+  };
+
+  const milestones = generateMilestones();
+  if (milestones.length === 0) return null;
+
+  return (
+    <div className="personal-milestones">
+      <div className="pm-header">
+        <span className="pm-title">个人里程碑</span>
+        <span className="pm-badge">个性化</span>
+      </div>
+      <div className="pm-list">
+        {milestones.map(m => (
+          <div key={m.id} className="pm-item" style={{ borderLeftColor: m.color }}>
+            <span className="pm-icon">{m.icon}</span>
+            <div className="pm-content">
+              <div className="pm-target">{m.target}</div>
+              <div className="pm-desc">{m.desc}</div>
+            </div>
+            <button className="pm-action" style={{ background: m.color }}>{m.action}</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
 // ─── 小工具组件 ────────────────────────────────────────────────────────────────
@@ -310,8 +397,8 @@ const AICoachModal = ({ onClose, token, embedded }) => {
             {!embedded && <h3 style={{ margin: 0 }}>🤖 AI 私人教练</h3>}
             {aiEnabled === false && (
               <div style={{ fontSize: 12, color: '#ff9500', marginTop: embedded ? 0 : 4 }}>
-                未配置 GROQ_API_KEY，当前使用内置规则建议 —{' '}
-                <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer" style={{ color: '#ff9500' }}>
+                未配置 AI Key，当前使用内置规则建议 —{' '}
+                <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" style={{ color: '#ff9500' }}>
                   免费申请 Key
                 </a>
               </div>
@@ -652,6 +739,9 @@ const Dashboard = () => {
 
         {/* 训练洞察 */}
         <InsightCard insights={insights} />
+
+        {/* 个人里程碑 */}
+        <PersonalMilestones prs={prs} stats={stats} />
       </div>
 
       {/* ── Tabs ── */}

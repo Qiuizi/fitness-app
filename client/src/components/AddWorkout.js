@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../App';
 import { API_URL } from '../config';
 
-// ─── 动作库（按常用度从高到低排序）────────────────────────────────────────────
+// ─── 动作库（按常用度从高到低排序）+ 语义标签 ─────────────────────────────────
 const EXERCISE_LIBRARY = {
   '胸部': [
     '杠铃卧推', '哑铃卧推', '上斜杠铃卧推', '上斜哑铃推举', '下斜杠铃卧推',
@@ -43,6 +43,120 @@ const EXERCISE_LIBRARY = {
     '跳绳', '游泳', '爬楼梯', 'HIIT', '跳箱',
     '战绳', '开合跳', '波比跳',
   ],
+};
+
+// ─── 语义搜索标签 ───────────────────────────────────────────────────────────
+const EXERCISE_TAGS = {
+  '卧推': ['胸部', '推', '胸'],
+  '飞鸟': ['胸部', '夹', '飞'],
+  '夹胸': ['胸部', '夹'],
+  '俯卧撑': ['胸部', '自重', '俯身'],
+  '引体': ['背部', '自重', '拉'],
+  '下拉': ['背部', '拉', '高位'],
+  '划船': ['背部', '拉', '划'],
+  '硬拉': ['背部', '腿部', '拉', '臀部'],
+  '深蹲': ['腿部', '蹲', '腿'],
+  '腿举': ['腿部', '推', '腿'],
+  '硬拉': ['腿部', '背部', '拉'],
+  '推举': ['肩部', '推'],
+  '侧平举': ['肩部', '举', '侧'],
+  '前平举': ['肩部', '举', '前'],
+  '弯举': ['手臂', '弯', '二头'],
+  '臂屈伸': ['手臂', '伸', '三头'],
+  '卷腹': ['核心', '腹', '卷'],
+  '平板支撑': ['核心', '支撑', '腹'],
+  '臀桥': ['臀部', '桥', '臀'],
+  '跑步': ['有氧', '跑'],
+  '骑行': ['有氧', '骑'],
+  '跳绳': ['有氧', '跳', '绳'],
+};
+
+// 智能语义搜索
+const semanticSearch = (query) => {
+  if (!query.trim()) return [];
+  const q = query.trim().toLowerCase();
+  const results = [];
+  
+  // 1. 精确匹配
+  Object.entries(EXERCISE_LIBRARY).forEach(([cat, exercises]) => {
+    exercises.forEach(ex => {
+      if (ex.includes(q)) {
+        results.push({ exercise: ex, category: cat, score: 100 });
+      }
+    });
+  });
+  
+  // 2. 语义标签匹配
+  Object.entries(EXERCISE_TAGS).forEach(([tag, keywords]) => {
+    if (q.includes(tag) || keywords.some(k => q.includes(k))) {
+      const cat = Object.entries(EXERCISE_LIBRARY).find(([_, exs]) => 
+        exs.some(ex => keywords.some(k => ex.includes(k)))
+      )?.[0];
+      
+      if (cat) {
+        EXERCISE_LIBRARY[cat].forEach(ex => {
+          if (keywords.some(k => ex.includes(k)) && !results.find(r => r.exercise === ex)) {
+            results.push({ exercise: ex, category: cat, score: 80 });
+          }
+        });
+      }
+    }
+  });
+  
+  // 3. 模糊匹配
+  Object.entries(EXERCISE_LIBRARY).forEach(([cat, exercises]) => {
+    exercises.forEach(ex => {
+      let similarity = 0;
+      for (let i = 0; i < Math.min(q.length, ex.length); i++) {
+        if (q[i] === ex[i]) similarity++;
+      }
+      const score = (similarity / Math.max(q.length, ex.length)) * 60;
+      if (score > 0.5 && !results.find(r => r.exercise === ex)) {
+        results.push({ exercise: ex, category: cat, score });
+      }
+    });
+  });
+  
+  return results.sort((a, b) => b.score - a.score).slice(0, 10);
+};
+
+// ─── 语音命令解析 ───────────────────────────────────────────────────────────
+const parseVoiceCommand = (text) => {
+  const patterns = [
+    { regex: /(\d+)\s*kg/i, weight: true },
+    { regex: /(\d+)\s*公斤/i, weight: true },
+    { regex: /(\d+)\s*斤/i, weight: true, factor: 0.5 },
+    { regex: /(\d+)\s*下/i, reps: true },
+    { regex: /(\d+)\s*次/i, reps: true },
+    { regex: /(\d+)\s*分钟/i, weight: true },
+    { regex: /(\d+)\s*千卡/i, reps: true },
+  ];
+  
+  let result = { weight: '', reps: '' };
+  
+  patterns.forEach(p => {
+    const match = text.match(p.regex);
+    if (match) {
+      const val = parseFloat(match[1]);
+      if (p.weight) {
+        result.weight = p.factor ? Math.round(val * p.factor * 2) / 2 : val;
+      }
+      if (p.reps) {
+        result.reps = val;
+      }
+    }
+  });
+  
+  // 提取动作名称
+  const allExercises = Object.values(EXERCISE_LIBRARY).flat();
+  for (const ex of allExercises) {
+    if (text.includes(ex)) {
+      result.exercise = ex;
+      break;
+    }
+  }
+  
+  return result;
 };
 
 const CARDIO_CAT = '有氧';
@@ -138,18 +252,55 @@ const WorkoutSummary = ({ records, duration, calories, onDone }) => {
 };
 
 // ─── 智能建议卡片 ──────────────────────────────────────────────────────────────
-const SuggestionCard = ({ suggestion, onApply }) => {
-  if (!suggestion) return null;
+const SuggestionCard = ({ suggestion, onApply, lastRecord, energyLevel }) => {
+  if (!suggestion && !lastRecord) return null;
+  
+  // 根据能量等级调整建议
+  const adjustSuggestion = (sugg) => {
+    if (!sugg) return null;
+    if (energyLevel <= 2) {
+      // 疲惫时降低目标
+      return {
+        ...sugg,
+        suggestedWeight: Math.round(sugg.suggestedWeight * 0.85 * 2) / 2,
+        reason: '状态不佳，适当降低强度，保持训练节奏',
+      };
+    } else if (energyLevel >= 4) {
+      // 充沛时挑战更高目标
+      return {
+        ...sugg,
+        suggestedWeight: Math.round(sugg.suggestedWeight * 1.05 * 2) / 2,
+        reason: '状态不错，试试突破自我！',
+      };
+    }
+    return sugg;
+  };
+  
+  const adjustedSuggestion = adjustSuggestion(suggestion);
+  const bestWeight = lastRecord?.sets?.[0]?.weight || 0;
+  
   return (
     <div className="suggestion-card" onClick={onApply}>
       <div className="suggestion-icon">🤖</div>
       <div className="suggestion-content">
-        <div className="suggestion-title">AI 建议</div>
-        <div className="suggestion-text">{suggestion.reason}</div>
-        <div className="suggestion-target">
-          目标：<strong>{suggestion.suggestedWeight === 0 ? '自重' : `${suggestion.suggestedWeight} kg`}</strong>
-          {' '}× <strong>{suggestion.suggestedReps} 次</strong>
+        <div className="suggestion-title">
+          {adjustedSuggestion?.isBreakthrough ? '🎯 突破机会' : 'AI 建议'}
         </div>
+        <div className="suggestion-text">
+          {adjustedSuggestion?.reason || `上次最佳 ${bestWeight}kg`}
+        </div>
+        {adjustedSuggestion && (
+          <div className="suggestion-target">
+            目标：<strong>{adjustedSuggestion.suggestedWeight === 0 ? '自重' : `${adjustedSuggestion.suggestedWeight} kg`}</strong>
+            {' '}× <strong>{adjustedSuggestion.suggestedReps} 次</strong>
+          </div>
+        )}
+        {!adjustedSuggestion && lastRecord && (
+          <div className="suggestion-target">
+            参考：<strong>{bestWeight === 0 ? '自重' : `${bestWeight} kg`}</strong>
+            {' '}× <strong>{lastRecord.sets[0]?.reps || 10} 次</strong>
+          </div>
+        )}
       </div>
       <div className="suggestion-apply">应用</div>
     </div>
@@ -263,6 +414,11 @@ const AddWorkout = () => {
 
   const [templateQueue, setTemplateQueue] = useState(templateData ? templateData.exercises.slice(1) : []);
   const [completedExercises, setCompletedExercises] = useState([]);
+  
+  // 语音输入状态
+  const [isListening, setIsListening] = useState(false);
+  const [voiceResult, setVoiceResult] = useState(null);
+  const recognitionRef = useRef(null);
   const [lastRecord, setLastRecord] = useState(null);
   const [suggestion, setSuggestion] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -270,6 +426,8 @@ const AddWorkout = () => {
 
   const [timerDuration, setTimerDuration] = useState(0);
   const [timerActive, setTimerActive] = useState(false);
+  const [energyLevel, setEnergyLevel] = useState(3); // 1-5 能量水平
+  
   useEffect(() => {
     let id = null;
     if (timerActive && timerDuration > 0) id = setInterval(() => setTimerDuration(p => p - 1), 1000);
@@ -277,12 +435,81 @@ const AddWorkout = () => {
     return () => clearInterval(id);
   }, [timerActive, timerDuration]);
 
+  // 智能休息时长推荐
+  const getRecommendedRestTime = () => {
+    const baseTimes = {
+      '胸部': 90, '背部': 120, '腿部': 180, '肩部': 90,
+      '手臂': 60, '核心': 60, '臀部': 120, '有氧': 0,
+    };
+    
+    // 根据能量水平调整
+    const energyMultiplier = energyLevel <= 2 ? 1.3 : energyLevel >= 4 ? 0.8 : 1;
+    
+    const category = Object.keys(EXERCISE_LIBRARY).find(cat => 
+      EXERCISE_LIBRARY[cat].includes(exercise)
+    ) || '胸部';
+    
+    return Math.round((baseTimes[category] || 90) * energyMultiplier);
+  };
+
   const formatTime = s => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
 
-  // 搜索过滤
+  // 语义搜索
+  const semanticSearchResults = searchText.trim() ? semanticSearch(searchText.trim()) : [];
   const filteredExercises = searchText.trim()
-    ? Object.values(EXERCISE_LIBRARY).flat().filter(ex => ex.includes(searchText.trim()))
+    ? semanticSearchResults.map(r => r.exercise)
     : (EXERCISE_LIBRARY[activeCategory] || []);
+
+  // 语音识别
+  const startVoiceInput = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert('您的浏览器不支持语音识别，请使用 Chrome 浏览器');
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'zh-CN';
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      setVoiceResult(null);
+    };
+
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .map(result => result[0].transcript)
+        .join('');
+      
+      setVoiceResult(transcript);
+      
+      // 解析语音命令
+      const parsed = parseVoiceCommand(transcript);
+      if (parsed.weight !== '' || parsed.reps !== '') {
+        // 更新当前组的值
+        const ns = [...sets];
+        if (ns.length > 0) {
+          if (parsed.weight !== '') ns[0].weight = parsed.weight;
+          if (parsed.reps !== '') ns[0].reps = parsed.reps;
+          setSets(ns);
+        }
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.error('语音识别错误:', event.error);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.start();
+    recognitionRef.current = recognition;
+  };
 
   // 加载历史 + 智能建议
   const loadExerciseData = async (ex, cardio) => {
@@ -587,6 +814,17 @@ const AddWorkout = () => {
       {/* 顶部信息栏 */}
       <div className="gym-header">
         <div className="gym-timer">{formatTime(elapsed)}</div>
+        
+        {/* 语音输入按钮 */}
+        <button 
+          className={`voice-btn ${isListening ? 'listening' : ''}`}
+          onClick={startVoiceInput}
+          disabled={isListening}
+          title="语音输入：说 '卧推80公斤10下'"
+        >
+          {isListening ? '🎤' : '🎤'}
+        </button>
+        
         {(completedExercises.length > 0 || templateQueue.length > 0) && (
           <div className="gym-progress-dots">
             {Array.from({ length: totalExercises }).map((_, i) => (
@@ -598,6 +836,32 @@ const AddWorkout = () => {
           style={{ padding: '6px 12px', fontSize: 13 }}>
           {completedExercises.length > 0 ? '结束' : '退出'}
         </button>
+      </div>
+      
+      {/* 语音识别结果显示 */}
+      {voiceResult && (
+        <div className="voice-result-toast">
+          识别到：「{voiceResult}」
+        </div>
+      )}
+
+      {/* 能量状态选择 */}
+      <div className="energy-selector">
+        <span className="energy-label">今天状态</span>
+        <div className="energy-dots">
+          {[1, 2, 3, 4, 5].map(level => (
+            <button
+              key={level}
+              className={`energy-dot ${energyLevel === level ? 'active' : ''} ${energyLevel >= level ? 'filled' : ''}`}
+              onClick={() => setEnergyLevel(level)}
+            >
+              {energyLevel >= level ? '●' : '○'}
+            </button>
+          ))}
+        </div>
+        <span className="energy-text">
+          {energyLevel <= 2 ? '疲惫' : energyLevel === 3 ? '一般' : '充沛'}
+        </span>
       </div>
 
       {/* 动作标题 */}
@@ -620,7 +884,12 @@ const AddWorkout = () => {
       )}
 
       {/* AI 建议 */}
-      <SuggestionCard suggestion={suggestion} onApply={applySuggestion} />
+      <SuggestionCard 
+        suggestion={suggestion} 
+        onApply={applySuggestion}
+        lastRecord={lastRecord}
+        energyLevel={energyLevel}
+      />
 
       {/* 日期 */}
       <div style={{ marginBottom: 12 }}>
@@ -654,9 +923,17 @@ const AddWorkout = () => {
       {!isCardio && (
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontSize: 12, color: 'var(--apple-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
-            休息计时
+            休息计时 · <span style={{ color: 'var(--apple-blue)', fontWeight: 600 }}>智能推荐 {getRecommendedRestTime()}s</span>
           </div>
           <div className="quick-timer-btns">
+            {/* 智能推荐 */}
+            <button 
+              type="button" 
+              onClick={() => { setTimerDuration(getRecommendedRestTime()); setTimerActive(true); }}
+              style={{ background: 'rgba(0,113,227,0.1)', borderColor: 'var(--apple-blue)', color: 'var(--apple-blue)' }}
+            >
+              ⚡ 推荐
+            </button>
             {[60, 90, 120, 180].map(s => (
               <button key={s} type="button" onClick={() => { setTimerDuration(s); setTimerActive(true); }}>
                 {Math.floor(s / 60)}:{String(s % 60).padStart(2, '0')}

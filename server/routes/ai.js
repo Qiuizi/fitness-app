@@ -1,9 +1,9 @@
 /**
- * AI 路由 — 基于 Groq API（免费，兼容 OpenAI 格式）
- * 模型：llama-3.3-70b-versatile（免费额度：30 RPM / 14400 RPD）
- * 申请免费 Key：https://console.groq.com/keys
+ * AI 路由 — 基于 OpenRouter API（免费，支持多种模型）
+ * 模型：Qwen/Qwen2.5-72B-Instruct（免费额度充足）
+ * 文档：https://openrouter.ai/docs
  *
- * 若未配置 GROQ_API_KEY，返回降级的本地建议（不报错）
+ * 若未配置 OPENROUTER_API_KEY，返回降级的本地建议（不报错）
  */
 
 const express = require('express');
@@ -12,8 +12,8 @@ const Workout = require('../models/Workout');
 const User    = require('../models/User');
 const router  = express.Router();
 
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_MODEL   = 'llama-3.3-70b-versatile';
+const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const OPENROUTER_MODEL   = 'qwen/qwen2.5-72b-instruct';
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 const auth = (req, res, next) => {
@@ -27,19 +27,21 @@ const auth = (req, res, next) => {
   }
 };
 
-// ─── Groq 调用封装 ────────────────────────────────────────────────────────────
-const callGroq = async (messages, temperature = 0.7) => {
-  const key = process.env.GROQ_API_KEY;
+// ─── OpenRouter 调用封装 ────────────────────────────────────────────────────
+const callAI = async (messages, temperature = 0.7) => {
+  const key = process.env.OPENROUTER_API_KEY;
   if (!key) return null; // 未配置key，降级处理
 
-  const res = await fetch(GROQ_API_URL, {
+  const res = await fetch(OPENROUTER_API_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${key}`,
+      'HTTP-Referer': 'https://fittrack.app',
+      'X-Title': 'FitTrack',
     },
     body: JSON.stringify({
-      model: GROQ_MODEL,
+      model: OPENROUTER_MODEL,
       messages,
       temperature,
       max_tokens: 1024,
@@ -47,7 +49,7 @@ const callGroq = async (messages, temperature = 0.7) => {
   });
 
   if (!res.ok) {
-    console.error('Groq API error:', res.status, await res.text());
+    console.error('OpenRouter API error:', res.status, await res.text());
     return null;
   }
   const data = await res.json();
@@ -126,7 +128,7 @@ router.post('/coach', auth, async (req, res) => {
 
     const userMessage = question || '根据我的训练数据，给我最重要的一条建议。';
 
-    const aiReply = await callGroq([
+    const aiReply = await callAI([
       { role: 'system', content: systemPrompt },
       { role: 'user',   content: userMessage },
     ]);
@@ -185,7 +187,7 @@ ${profile.gender ? `- 性别：${profile.gender === 'male' ? '男' : '女'}` : '
 4. 语言简洁，适合直接按照执行
 5. 计划要符合该水平用户的能力，不要过难或过简单`;
 
-    const aiPlan = await callGroq([
+    const aiPlan = await callAI([
       { role: 'system', content: '你是专业健身教练，请用中文生成结构清晰的训练计划。' },
       { role: 'user',   content: prompt },
     ], 0.5);
@@ -230,7 +232,7 @@ router.post('/calories', auth, async (req, res) => {
 // GET /api/ai/status — 检查 AI 是否可用
 // ═══════════════════════════════════════════════════════════════════════════════
 router.get('/status', auth, (req, res) => {
-  res.json({ aiEnabled: !!process.env.GROQ_API_KEY });
+  res.json({ aiEnabled: !!process.env.OPENROUTER_API_KEY });
 });
 
 module.exports = router;
