@@ -196,11 +196,12 @@ label {
 
 .empty-state {
   text-align: center;
-  padding: 80px 20px;
-  background: var(--apple-card-bg);
-  border-radius: 24px;
-  box-shadow: var(--apple-shadow);
+  padding: 60px 20px;
+  background: transparent;
+  border-radius: 4px;
+  box-shadow: none;
   margin-top: 20px;
+  border: 2px dashed var(--apple-border);
 }
 
 .empty-state .empty-icon {
@@ -712,34 +713,39 @@ label {
   color: var(--apple-blue);
 }
 
-/* ========== Content Tabs ========== */
 .content-tabs {
   display: flex;
-  gap: 4px;
-  background: var(--apple-bg);
-  border-radius: 12px;
-  padding: 4px;
+  gap: 8px;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
   margin-bottom: 24px;
-  border: 1px solid var(--apple-border);
+  border: none;
+  border-bottom: 2px solid var(--apple-border);
 }
 
 .content-tab {
-  flex: 1;
+  flex: none;
   text-align: center;
-  padding: 8px 16px;
-  border-radius: 9px;
-  font-size: 14px;
-  font-weight: 500;
+  padding: 12px 16px;
+  border-radius: 0;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: var(--apple-text-secondary);
   cursor: pointer;
   transition: all 0.2s;
   user-select: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
 }
 
 .content-tab.active {
-  background: var(--apple-card-bg);
+  background: transparent;
   color: var(--apple-text);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  box-shadow: none;
+  border-bottom: 2px solid var(--apple-text);
 }
 
 .content-tab:hover:not(.active) {
@@ -1237,11 +1243,12 @@ label {
 
 /* Calendar Check-in UI */
 .calendar-container {
-  background: var(--apple-card-bg);
-  border-radius: 20px;
+  background: transparent;
+  border-radius: 4px;
   padding: 24px;
   margin-bottom: 30px;
-  box-shadow: var(--apple-shadow);
+  box-shadow: none;
+  border: 2px solid var(--apple-text);
 }
 
 .calendar-header {
@@ -1257,17 +1264,19 @@ label {
 }
 
 .insight-badge {
-  background: rgba(0, 113, 227, 0.1);
-  color: var(--apple-blue);
-  padding: 6px 12px;
-  border-radius: 12px;
-  font-size: 13px;
-  font-weight: 600;
+  background: transparent;
+  color: var(--apple-text);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  border: 1px solid var(--apple-text);
+  text-transform: uppercase;
 }
 
 .insight-badge.fire {
-  background: rgba(255, 149, 0, 0.1);
-  color: #ff9500;
+  background: var(--apple-text);
+  color: white;
 }
 
 .calendar-grid {
@@ -1278,21 +1287,21 @@ label {
 }
 
 .calendar-square {
-  min-width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  background: rgba(0,0,0,0.04);
+  min-width: 22px;
+  height: 22px;
+  border-radius: 2px;
+  background: var(--apple-border);
   transition: all 0.2s;
   cursor: default;
 }
 
 .calendar-square.active {
-  background: #34c759;
-  box-shadow: 0 0 8px rgba(52, 199, 89, 0.4);
+  background: var(--apple-text);
+  box-shadow: none;
 }
 
 .calendar-square.today {
-  border: 2px solid var(--apple-text);
+  border: 2px solid #ff3b30;
 }
 
 /* Template Playlist UI */
@@ -1483,11 +1492,11 @@ label {
    Streak Widget
 ══════════════════════════════════════════════════ */
 .streak-widget {
-  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
-  border-radius: 22px;
+  background: var(--apple-text);
+  border-radius: 4px;
   padding: 24px;
   color: white;
-  box-shadow: 0 8px 32px rgba(255,107,53,0.28);
+  box-shadow: none;
   margin-bottom: 20px;
 }
 
@@ -1672,20 +1681,19 @@ label {
 }
 
 .template-card {
-  background: var(--apple-card-bg);
-  border: 1px solid var(--apple-border);
-  border-radius: 18px;
-  padding: 18px 20px;
-  box-shadow: var(--apple-shadow);
+  background: var(--apple-bg);
+  border: 2px solid var(--apple-border);
+  border-radius: 4px;
+  padding: 20px;
   display: flex;
   align-items: center;
   gap: 16px;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.2s;
 }
 
 .template-card:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--apple-shadow-hover);
+  transform: none;
+  border-color: var(--apple-text);
 }
 
 .template-info {
@@ -1722,18 +1730,17 @@ label {
 }
 
 .template-new-btn {
-  border: 2px dashed var(--apple-border);
+  border: 2px dashed var(--apple-text);
   background: transparent;
-  color: var(--apple-text-secondary);
-  padding: 14px;
+  color: var(--apple-text);
+  padding: 16px;
   font-size: 14px;
-  border-radius: 18px;
+  border-radius: 4px;
 }
 
 .template-new-btn:hover {
-  border-color: var(--apple-blue);
-  color: var(--apple-blue);
-  background: rgba(0,113,227,0.04);
+  background: var(--apple-text);
+  color: white;
 }
 
 /* ══════════════════════════════════════════════════
@@ -2638,11 +2645,10 @@ label {
 }
 
 /* ══════════════════════════════════════════════════
-   AI 教练 UI
+   AI 智能洞察面板
 ══════════════════════════════════════════════════ */
-.ai-modal {
-  max-height: 80vh;
-  overflow-y: auto;
+.ai-insights-panel {
+  display: none;
 }
 
 .ai-embedded {

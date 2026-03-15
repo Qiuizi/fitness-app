@@ -48,6 +48,7 @@ const App = () => {
     };
   }, [token]);
 
+  // V7.0 Offline Sync Architecture
   const login = (newToken) => {
     localStorage.setItem('token', newToken);
     setToken(newToken);

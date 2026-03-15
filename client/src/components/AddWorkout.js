@@ -333,7 +333,7 @@ const WorkoutSummary = ({ records, duration, calories, onDone }) => {
 };
 
 // ─── 智能建议卡片 ──────────────────────────────────────────────────────────────
-const SuggestionCard = ({ suggestion, onApply, lastRecord, energyLevel }) => {
+const SuggestionCard = ({ suggestion, onApply, onApplyLastRecord, lastRecord, energyLevel }) => {
   if (!suggestion && !lastRecord) return null;
   
   // 根据能量等级调整建议
@@ -359,31 +359,40 @@ const SuggestionCard = ({ suggestion, onApply, lastRecord, energyLevel }) => {
   
   const adjustedSuggestion = adjustSuggestion(suggestion);
   const bestWeight = lastRecord?.sets?.[0]?.weight || 0;
+  const bestReps = lastRecord?.sets?.[0]?.reps || 10;
+  
+  const handleApply = () => {
+    if (suggestion) {
+      onApply();
+    } else if (lastRecord?.sets?.length) {
+      onApplyLastRecord();
+    }
+  };
   
   return (
-    <div className="suggestion-card" onClick={onApply}>
-      <div className="suggestion-icon">🤖</div>
+    <div className="suggestion-card" onClick={handleApply}>
+      <div className="suggestion-icon">📊</div>
       <div className="suggestion-content">
         <div className="suggestion-title">
-          {adjustedSuggestion?.isBreakthrough ? '🎯 突破机会' : 'AI 建议'}
+          {suggestion?.isBreakthrough ? '🎯 突破机会' : '上次的记录'}
         </div>
         <div className="suggestion-text">
-          {adjustedSuggestion?.reason || `上次最佳 ${bestWeight}kg`}
+          {suggestion?.reason || `上次: ${bestWeight}kg × ${bestReps}次`}
         </div>
-        {adjustedSuggestion && (
+        {suggestion && (
           <div className="suggestion-target">
-            目标：<strong>{adjustedSuggestion.suggestedWeight === 0 ? '自重' : `${adjustedSuggestion.suggestedWeight} kg`}</strong>
-            {' '}× <strong>{adjustedSuggestion.suggestedReps} 次</strong>
+            目标：<strong>{suggestion.suggestedWeight === 0 ? '自重' : `${suggestion.suggestedWeight} kg`}</strong>
+            {' '}× <strong>{suggestion.suggestedReps} 次</strong>
           </div>
         )}
-        {!adjustedSuggestion && lastRecord && (
+        {!suggestion && lastRecord && (
           <div className="suggestion-target">
             参考：<strong>{bestWeight === 0 ? '自重' : `${bestWeight} kg`}</strong>
-            {' '}× <strong>{lastRecord.sets[0]?.reps || 10} 次</strong>
+            {' '}× <strong>{bestReps} 次</strong>
           </div>
         )}
       </div>
-      <div className="suggestion-apply" onClick={onApply}>应用</div>
+      <div className="suggestion-apply" onClick={handleApply}>应用</div>
     </div>
   );
 };
@@ -767,6 +776,11 @@ const AddWorkout = () => {
     if (!suggestion) return;
     setSets(sets.map(s => ({ ...s, weight: suggestion.suggestedWeight, reps: suggestion.suggestedReps })));
   };
+  
+  const applyLastRecord = () => {
+    if (!lastRecord?.sets?.length) return;
+    setSets(lastRecord.sets.map(s => ({ weight: s.weight, reps: s.reps, done: false })));
+  };
 
   const handleSetChange = (i, field, val) => {
     const ns = [...sets];
@@ -848,17 +862,34 @@ const AddWorkout = () => {
           body: JSON.stringify(r),
         })
       ));
-      // 计算卡路里
-      try {
-        const calRes = await fetch(`${API_URL}/api/ai/calories`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-          body: JSON.stringify({ exercises: newCompleted }),
-        });
-        if (calRes.ok) setCalories(await calRes.json());
-      } catch { /* 卡路里计算失败不阻塞 */ }
+      const localCal = calculateCaloriesLocal(newCompleted);
+      setCalories(localCal);
       setPhase('summary');
     } catch { alert('提交失败，请重试'); }
+  };
+  
+  const calculateCaloriesLocal = (exercises) => {
+    const MET = {
+      '跑步': 11, '快跑': 14, '跳绳': 12, '游泳': 8, '爬楼梯': 9, 'HIIT': 11,
+      '动感单车': 8.5, '划船机': 7, '椭圆机': 5, '快走': 5.5, '散步': 3.5,
+      '深蹲': 5.5, '硬拉': 6, '卧推': 4.5, '划船': 4.5, '推举': 4.5,
+      '弯举': 3.5, '三头': 3.5, '腿举': 5, '卷腹': 3.5, '平板支撑': 4,
+    };
+    const defaultMET = 5;
+    let total = 0;
+    const results = exercises.map(ex => {
+      const met = MET[ex.exercise] || defaultMET;
+      let duration = 0;
+      if (ex.type === 'cardio') {
+        duration = ex.sets.reduce((a, s) => a + (s.weight || 0), 0);
+      } else {
+        duration = ex.sets.length * 2.5;
+      }
+      const cal = Math.round(met * 70 * (duration / 60));
+      total += cal;
+      return { exercise: ex.exercise, type: ex.type, sets: ex.sets.length, duration: Math.round(duration), calories: cal };
+    });
+    return { results, total, bodyWeight: 70, hasUserWeight: false };
   };
 
   // 继续添加动作
@@ -1140,10 +1171,11 @@ const AddWorkout = () => {
         </div>
       )}
 
-      {/* AI 建议 */}
+      {/* 记录参考 */}
       <SuggestionCard 
         suggestion={suggestion} 
         onApply={applySuggestion}
+        onApplyLastRecord={applyLastRecord}
         lastRecord={lastRecord}
         energyLevel={energyLevel}
       />

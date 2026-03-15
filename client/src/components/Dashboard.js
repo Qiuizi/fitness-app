@@ -132,70 +132,6 @@ const InsightCard = ({ insights }) => {
     </div>
   );
 };
-
-// ─── AI 智能洞察面板 ───────────────────────────────────────────────────────────
-const AIInsightsPanel = ({ token }) => {
-  const [insights, setInsights] = useState([]);
-  const [plateaus, setPlateaus] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!token) return;
-    
-    // 获取综合洞察
-    fetch(`${API_URL}/api/ai/insights`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-    })
-      .then(r => r.json())
-      .then(d => setInsights(d.insights || []))
-      .catch(() => {});
-
-    // 获取平台期检测
-    fetch(`${API_URL}/api/ai/plateaus`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-    })
-      .then(r => r.json())
-      .then(d => setPlateaus(d.plateaus || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [token]);
-
-  if (loading || (insights.length === 0 && plateaus.length === 0)) return null;
-
-  return (
-    <div className="ai-insights-panel">
-      {plateaus.length > 0 && (
-        <div className="plateau-section">
-          <div className="plateau-header">
-            <span className="plateau-icon">🎯</span>
-            <span className="plateau-title">平台期预警</span>
-          </div>
-          {plateaus.map((p, i) => (
-            <div key={i} className="plateau-item">
-              <div className="plateau-exercise">{p.exercise}</div>
-              <div className="plateau-suggestion">{p.suggestion}</div>
-              <div className="plateau-action">
-                <span className="plateau-target">目标: {p.targetWeight}kg</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="insights-section">
-        {insights.filter(i => i.type !== 'motivation').slice(0, 3).map((ins, i) => (
-          <div key={i} className={`insight-item ${ins.type}`}>
-            <span className="insight-emoji">{ins.icon}</span>
-            <span className="insight-content">{ins.text}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
 const TodayCard = ({ todayPlan, templates, onStartTemplate }) => {
   const todayDow = new Date().getDay();
   const plan = todayPlan?.find(p => p.dayOfWeek === todayDow);
@@ -294,14 +230,13 @@ const StreakWidget = ({ streak, longestStreak, shield, onUseShield }) => {
 const TemplateManager = ({ templates, onStartTemplate, onDelete, onCreateNew }) => {
   if (templates.length === 0) {
     return (
-      <div className="empty-state" style={{ padding: '40px 20px' }}>
-        <div className="empty-icon">📋</div>
-        <h3>还没有训练模板</h3>
-        <p>保存一套常用训练动作，下次一键加载，省去选动作的时间</p>
-        <Link to="/add">
-          <button style={{ marginTop: 16 }}>去记录第一次训练</button>
-        </Link>
-      </div>
+        <div className="empty-state">
+          <h3 style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>NO PROTOCOLS FOUND</h3>
+          <p style={{ color: 'var(--apple-text-secondary)', fontSize: 13, textTransform: 'uppercase' }}>Construct a rigid routine for maximum efficiency.</p>
+          <Link to="/add">
+            <button style={{ marginTop: 16 }}>INITIATE</button>
+          </Link>
+        </div>
     );
   }
   return (
@@ -309,26 +244,26 @@ const TemplateManager = ({ templates, onStartTemplate, onDelete, onCreateNew }) 
       {templates.map(t => (
         <div key={t._id} className="template-card">
           <div className="template-info">
-            <div className="template-name">{t.name}</div>
-            <div className="template-exercises">
+              <div className="template-name">{t.name}</div>
+              <div className="template-exercises" style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, textTransform: 'uppercase' }}>
               {t.exercises.map(e => e.exercise).join(' · ')}
             </div>
             {t.lastUsed && (
-              <div className="template-meta">
-                上次使用 {new Date(t.lastUsed).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })}
-                {t.useCount > 1 && ` · 已用 ${t.useCount} 次`}
-              </div>
+                <div className="template-meta" style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: 'var(--apple-text-secondary)', textTransform: 'uppercase' }}>
+                  LAST DEPLOYED: {new Date(t.lastUsed).toLocaleDateString('zh-CN')}
+                  {t.useCount > 1 && ` // RAN ${t.useCount} TIMES`}
+                </div>
             )}
           </div>
           <div className="template-actions">
-            <button onClick={() => onStartTemplate(t)}>使用模板</button>
-            <button className="secondary" style={{ fontSize: 13, padding: '6px 12px' }}
-              onClick={() => onDelete(t._id)}>删除</button>
+            <button onClick={() => onStartTemplate(t)}>EXECUTE</button>
+            <button className="secondary" style={{ padding: '14px 16px' }}
+              onClick={() => onDelete(t._id)}>DEL</button>
           </div>
         </div>
       ))}
-      <button className="secondary template-new-btn" onClick={onCreateNew}>
-        + 新建模板
+      <button className="secondary template-new-btn" onClick={onCreateNew} style={{ fontWeight: 800, letterSpacing: '0.05em' }}>
+        + NEW PROTOCOL
       </button>
     </div>
   );
@@ -417,109 +352,6 @@ const ProgressModal = ({ exercise, onClose, token }) => {
   );
 };
 
-// ─── AI 教练 Modal ────────────────────────────────────────────────────────────
-const AICoachModal = ({ onClose, token, embedded }) => {
-  const [question, setQuestion] = useState('');
-  const [reply, setReply]       = useState('');
-  const [loading, setLoading]   = useState(false);
-  const [aiEnabled, setAiEnabled] = useState(null);
-
-  useEffect(() => {
-    fetch(`${API_URL}/api/ai/status`, { headers: { 'x-auth-token': token } })
-      .then(r => r.json()).then(d => setAiEnabled(d.aiEnabled)).catch(() => setAiEnabled(false));
-  }, [token]);
-
-  const QUICK_QUESTIONS = [
-    '根据我的数据，给我最重要的一条建议',
-    '我应该怎么突破深蹲的瓶颈期？',
-    '今天训练完感觉很疲惫，明天还要练吗？',
-    '我怎么在增肌同时减少体脂？',
-  ];
-
-  const ask = async (q) => {
-    setLoading(true);
-    setReply('');
-    try {
-      const res = await fetch(`${API_URL}/api/ai/coach`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-        body: JSON.stringify({ question: q }),
-      });
-      if (res.ok) {
-        const d = await res.json();
-        setReply(d.reply);
-      }
-    } catch { setReply('网络错误，请稍后再试。'); }
-    setLoading(false);
-  };
-
-  const Inner = (
-    <>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div>
-            {!embedded && <h3 style={{ margin: 0 }}>🤖 AI 私人教练</h3>}
-            {aiEnabled === false && (
-              <div style={{ fontSize: 12, color: '#ff9500', marginTop: embedded ? 0 : 4 }}>
-                未配置 AI Key，当前使用内置规则建议 —{' '}
-                <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" style={{ color: '#ff9500' }}>
-                  免费申请 Key
-                </a>
-              </div>
-            )}
-          </div>
-          {!embedded && <button className="secondary" onClick={onClose} style={{ padding: '6px 14px' }}>关闭</button>}
-        </div>
-
-        {/* 快捷问题 */}
-        <div className="ai-quick-questions">
-          {QUICK_QUESTIONS.map((q, i) => (
-            <div key={i} className="ai-quick-q" onClick={() => { setQuestion(q); ask(q); }}>
-              {q}
-            </div>
-          ))}
-        </div>
-
-        {/* 自定义输入 */}
-        <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
-          <input
-            type="text"
-            placeholder="或者直接问我任何健身问题..."
-            value={question}
-            onChange={e => setQuestion(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && question.trim() && ask(question.trim())}
-            style={{ flex: 1, marginBottom: 0 }}
-          />
-          <button onClick={() => question.trim() && ask(question.trim())}
-            style={{ padding: '0 18px', whiteSpace: 'nowrap' }} disabled={loading}>
-            发送
-          </button>
-        </div>
-
-        {/* 回复区 */}
-        {loading && (
-          <div className="ai-loading">
-            <div className="ai-dots"><span /><span /><span /></div>
-            <span>思考中...</span>
-          </div>
-        )}
-        {reply && !loading && (
-          <div className="ai-reply">
-            <div className="ai-reply-label">教练建议</div>
-            <div className="ai-reply-text">{reply}</div>
-          </div>
-        )}
-    </>
-  );
-
-  if (embedded) return <div className="ai-embedded">{Inner}</div>;
-
-  return (
-    <div>
-      {Inner}
-    </div>
-  );
-};
-
 // ─── 用户资料完善 Modal ───────────────────────────────────────────────────────
 const ProfileModal = ({ onClose, onSave, currentProfile }) => {
   const [form, setForm] = useState({
@@ -541,7 +373,7 @@ const ProfileModal = ({ onClose, onSave, currentProfile }) => {
           <button className="secondary" onClick={onClose} style={{ padding: '6px 14px' }}>取消</button>
         </div>
         <p style={{ color: 'var(--apple-text-secondary)', fontSize: 14, marginTop: -8, marginBottom: 16 }}>
-          身体数据用于计算卡路里消耗和 AI 个性化建议
+          身体数据用于计算卡路里消耗和训练记录
         </p>
 
         <div className="profile-form-grid">
@@ -614,7 +446,6 @@ const Dashboard = () => {
   const [activeTab, setActiveTab]         = useState('overview');
   const [progressExercise, setProgressExercise] = useState(null);
   const [showBWModal, setShowBWModal]     = useState(false);
-  const [showAICoach, setShowAICoach]     = useState(false);
   const [showProfile, setShowProfile]     = useState(false);
 
   const fetchAll = useCallback(async () => {
@@ -771,11 +602,11 @@ const Dashboard = () => {
   
   const getInsightMessage = () => {
     const activeDaysThisWeek = calendarDays.slice(-7).filter(d => d.active).length;
-    if (workouts.length === 0) return { type: 'info', emoji: '💡', text: '开启你的第一次训练吧！' };
-    if (activeDaysThisWeek >= 4) return { type: 'fire', emoji: '🔥', text: '状态火热！你这周的训练超越了 90% 的用户。' };
-    if (activeDaysThisWeek >= 2) return { type: 'info', emoji: '💪', text: '保持着不错的节奏，汗水不会骗人。' };
-    if (activeDaysThisWeek === 1) return { type: 'info', emoji: '👍', text: '好的开始是成功的一半，明天继续吗？' };
-    return { type: 'warning', emoji: '🔋', text: '休息得不错！是时候重新找回训练节奏了。' };
+    if (workouts.length === 0) return { type: 'info', text: 'INITIATE FIRST PROTOCOL' };
+    if (activeDaysThisWeek >= 4) return { type: 'fire', text: 'OPTIMAL FREQUENCY' };
+    if (activeDaysThisWeek >= 2) return { type: 'info', text: 'MODERATE FREQUENCY' };
+    if (activeDaysThisWeek === 1) return { type: 'info', text: 'SUBOPTIMAL FREQUENCY' };
+    return { type: 'warning', text: 'SYSTEM DORMANT' };
   };
   const insight = getInsightMessage();
 
@@ -792,11 +623,9 @@ const Dashboard = () => {
     : null;
 
   const TABS = [
-    { key: 'overview',  label: '总览' },
-    { key: 'history',   label: '训练历史' },
-    { key: 'pr',        label: '个人记录' },
-    { key: 'templates', label: '训练模板' },
-    { key: 'body',      label: '体重' },
+    { key: 'overview',  label: 'DASHBOARD' },
+    { key: 'history',   label: 'LOGS' },
+    { key: 'templates', label: 'PROTOCOLS' },
   ];
 
   return (
@@ -805,32 +634,29 @@ const Dashboard = () => {
       <nav className="nav">
         <span className="nav-brand">💪 FitTrack</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {user && <span className="nav-greeting">{user.username}</span>}
-          <Link to="/add"><button style={{ padding: '7px 16px', fontSize: 14 }}>+ 记录训练</button></Link>
-          <button className="secondary" onClick={() => setShowProfile(true)} style={{ padding: '7px 14px', fontSize: 14 }}>资料</button>
-          <button className="secondary" onClick={logout} style={{ padding: '7px 14px', fontSize: 14 }}>退出</button>
+          <Link to="/add"><button style={{ padding: '7px 16px', fontSize: 14 }}>+ LOG</button></Link>
+          <button className="secondary" onClick={() => setShowProfile(true)} style={{ padding: '7px 14px', fontSize: 14 }}>CFG</button>
+          <button className="secondary" onClick={logout} style={{ padding: '7px 14px', fontSize: 14 }}>QUIT</button>
         </div>
       </nav>
 
       {/* ── Hero ── */}
       <div className="hero-section">
-        <h1 style={{ marginTop: 36, marginBottom: 6 }}>
-          {user ? `${user.username}，` : ''}{stats?.streak > 0 ? `第 ${stats.streak} 天` : '今天'}
+        <h1 style={{ marginTop: 36, marginBottom: 6, fontFamily: 'JetBrains Mono, monospace' }}>
+          {user ? `IRON.ID[${user.username}]` : 'IRON.SYS'}
         </h1>
-        <p style={{ color: 'var(--apple-text-secondary)', fontSize: 17, marginBottom: 28 }}>
-          {stats?.streak > 2
-            ? `连续打卡 ${stats.streak} 天，保持下去`
-            : '记录每一次训练，见证自己的成长'}
+        <p style={{ color: 'var(--apple-text-secondary)', fontSize: 13, marginBottom: 28, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          LOCAL FIRST // INDUSTRIAL LOGGING SYSTEM
         </p>
 
       {/* ── 规则智能洞察 & 打卡日历 ── */}
       <div className="calendar-container">
-        <div className="calendar-header">
-          <h3>最近 28 天打卡</h3>
-          <div className={`insight-badge ${insight.type}`}>
-            {insight.emoji} {insight.text}
+          <div className="calendar-header">
+            <h3>LOG FREQUENCY (28 DAYS)</h3>
+            <div className={`insight-badge ${insight.type}`}>
+               {insight.text}
+            </div>
           </div>
-        </div>
         <div className="calendar-grid">
           {calendarDays.map((day, i) => (
             <div 
@@ -844,9 +670,6 @@ const Dashboard = () => {
 
         {/* 今天练什么 */}
         <TodayCard todayPlan={todayPlan} templates={templates} onStartTemplate={handleStartTemplate} />
-
-        {/* 个人里程碑 */}
-        <PersonalMilestones prs={prs} stats={stats} />
       </div>
 
       {/* ── Tabs ── */}
@@ -874,21 +697,17 @@ const Dashboard = () => {
           )}
 
           {/* 核心数据卡 */}
-          <div className="stats-grid-2">
+          <div className="stats-grid-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px' }}>
             {[
-              { label: '训练次数',  val: stats?.totalWorkouts ?? '—',  unit: '次',  color: null },
-              { label: '活跃天数',  val: stats?.activeDays ?? '—',     unit: '天',  color: null },
-              { label: '力量总量',  val: stats ? (stats.totalVolume / 1000).toFixed(1) : '—', unit: '吨', color: '0,113,227' },
-              { label: '有氧消耗',  val: stats?.totalCardioCalories ?? '—', unit: '千卡', color: '255,149,0' },
-              ...(latestBW ? [{ label: '当前体重', val: latestBW, unit: 'kg', color: '52,199,89' }] : []),
+              { label: 'SESSIONS',  val: stats?.totalWorkouts ?? '—',  unit: 'LOGS',  color: null },
+              { label: 'ACTIVE',  val: stats?.activeDays ?? '—',     unit: 'DAYS',  color: null },
+              { label: 'VOL',  val: stats ? (stats.totalVolume / 1000).toFixed(1) : '—', unit: 'TONS', color: null },
+              { label: 'BURN',  val: stats?.totalCardioCalories ?? '—', unit: 'KCAL', color: null },
             ].map((c, i) => (
-              <div key={i} className="stat-card-2" style={c.color ? {
-                background: `rgba(${c.color},0.05)`,
-                border: `1px solid rgba(${c.color},0.18)`,
-              } : {}}>
-                <div className="stat-card-2-label" style={c.color ? { color: `rgb(${c.color})` } : {}}>{c.label}</div>
-                <div className="stat-card-2-value" style={c.color ? { color: `rgb(${c.color})` } : {}}>{c.val}</div>
-                <div className="stat-card-2-unit">{c.unit}</div>
+              <div key={i} className="stat-card" style={{ padding: '16px', background: 'transparent' }}>
+                <div className="stat-card-2-label" style={{ marginBottom: '8px' }}>{c.label}</div>
+                <div className="stat-card-2-value" style={{ fontFamily: 'JetBrains Mono, monospace' }}>{c.val}</div>
+                <div className="stat-card-2-unit" style={{ fontSize: '10px', textTransform: 'uppercase', marginTop: '4px' }}>{c.unit}</div>
               </div>
             ))}
           </div>
@@ -896,24 +715,24 @@ const Dashboard = () => {
           {/* 力量趋势迷你图 */}
           {chartData.length >= 2 && (
             <div className="mini-chart-card">
-              <div className="mini-chart-title">力量训练量趋势</div>
-              <ResponsiveContainer width="100%" height={120}>
-                <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-                  <defs>
-                    <linearGradient id="volG" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0071e3" stopOpacity={0.15} />
-                      <stop offset="95%" stopColor="#0071e3" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.04)" />
-                  <XAxis dataKey="date" tick={{ fill: 'var(--apple-text-secondary)', fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis hide />
-                  <Tooltip contentStyle={{ borderRadius: 10, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', fontSize: 12 }}
-                    formatter={v => [`${v.toLocaleString()} kg`, '训练量']} />
-                  <Area type="monotone" dataKey="vol" stroke="#0071e3" strokeWidth={2}
-                    fill="url(#volG)" dot={false} activeDot={{ r: 4 }} />
-                </AreaChart>
-              </ResponsiveContainer>
+            <div className="mini-chart-title">VOL TREND</div>
+            <ResponsiveContainer width="100%" height={120}>
+              <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+                <defs>
+                  <linearGradient id="volG" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#000000" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="#000000" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.04)" />
+                <XAxis dataKey="date" tick={{ fill: 'var(--apple-text-secondary)', fontSize: 10, fontFamily: 'JetBrains Mono' }} axisLine={false} tickLine={false} />
+                <YAxis hide />
+                <Tooltip contentStyle={{ borderRadius: 4, border: '2px solid var(--apple-text)', boxShadow: 'none', fontSize: 12, fontFamily: 'JetBrains Mono' }}
+                  formatter={v => [`${v.toLocaleString()} kg`, 'VOL']} />
+                <Area type="monotone" dataKey="vol" stroke="#000000" strokeWidth={2}
+                  fill="url(#volG)" dot={false} activeDot={{ r: 4 }} />
+              </AreaChart>
+            </ResponsiveContainer>
             </div>
           )}
 
@@ -944,11 +763,11 @@ const Dashboard = () => {
       {/* ══════════ 训练历史 Tab ══════════ */}
       {activeTab === 'history' && (
         <>
-          <div className="period-filter">
-            {[{ k: 'week', l: '近7天' }, { k: 'month', l: '近30天' }, { k: 'all', l: '全部' }].map(p => (
+          <div className="period-filter" style={{ gap: '12px' }}>
+            {[{ k: 'week', l: '7 DAYS' }, { k: 'month', l: '30 DAYS' }, { k: 'all', l: 'ALL' }].map(p => (
               <button key={p.k}
                 className={period === p.k ? '' : 'secondary'}
-                style={{ padding: '6px 16px', fontSize: 14 }}
+                style={{ padding: '8px 20px', borderRadius: '4px', letterSpacing: '0.05em' }}
                 onClick={() => setPeriod(p.k)}>
                 {p.l}
               </button>
@@ -978,65 +797,63 @@ const Dashboard = () => {
             </div>
           )}
 
-          {workouts.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-icon">🏋️</div>
-              <h3>从第一次训练开始</h3>
-              <p>记录你的训练，几周后就能看到清晰的进步曲线</p>
-              <Link to="/add"><button style={{ marginTop: 20 }}>记录第一次训练</button></Link>
-            </div>
-          ) : (
-            <div className="daily-groupings">
-              {sortedDates.map(dateKey => {
-                const day = groupedWorkouts[dateKey];
-                return (
-                  <div key={dateKey} className="daily-group">
-                    <div className="daily-header">
-                      <h3>{dateKey}</h3>
-                      <div style={{ display: 'flex', gap: 12 }}>
-                        {day.totalVol > 0 && <span className="daily-meta">{day.totalVol.toLocaleString()} kg</span>}
-                        {day.totalCals > 0 && <span className="daily-meta" style={{ color: '#ff9500' }}>🔥 {day.totalCals} 千卡</span>}
-                      </div>
-                    </div>
-                    {day.items.map(w => (
-                      <div key={w._id} className={`exercise-card ${w.type === 'cardio' ? 'cardio-card' : ''}`}>
-                        <div className="exercise-header">
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ fontSize: 20 }}>{w.type === 'cardio' ? '🏃' : '🏋️'}</span>
-                            <div>
-                              <h4 style={{ margin: 0 }}>{w.exercise}</h4>
-                              {w.type === 'strength' && (
-                                <span className="progress-link" onClick={() => setProgressExercise(w.exercise)}>
-                                  查看进步曲线 →
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <button className="delete-btn" onClick={() => handleDelete(w._id)}>删除</button>
-                        </div>
-                        <div className="set-list">
-                          {w.sets.map((s, i) => (
-                            <div key={i} className="set-item">
-                              {w.type === 'strength' && <span className="set-item-index">#{i + 1}</span>}
-                              {w.type === 'cardio' ? (
-                                <><span>{s.weight} 分钟</span><span style={{ color: '#ff9500' }}>{s.reps} 千卡</span></>
-                              ) : (
-                                <><span>{s.weight === 0 ? '自重' : `${s.weight} kg`}</span><span>{s.reps} 次</span></>
-                              )}
-                              <button className="set-delete-btn" onClick={() => handleDeleteSet(w._id, i)}>×</button>
-                            </div>
-                          ))}
-                        </div>
-                        {w.notes && <div className="exercise-notes">{w.notes}</div>}
-                      </div>
-                    ))}
+      {workouts.length === 0 ? (
+        <div className="empty-state" style={{ border: '1px dashed var(--apple-border)', background: 'transparent', boxShadow: 'none' }}>
+          <div className="empty-icon">⬛</div>
+          <h3 style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>NO DATA FOUND</h3>
+          <p>Initialize your first protocol.</p>
+          <Link to="/add"><button style={{marginTop: '20px', borderRadius: '4px'}}>INITIATE</button></Link>
+        </div>
+      ) : (
+        <div className="daily-groupings">
+          {sortedDates.map(dateKey => {
+            const day = groupedWorkouts[dateKey];
+            return (
+              <div key={dateKey} className="daily-group" style={{ borderLeft: '4px solid var(--apple-text)', paddingLeft: '20px', marginLeft: '10px' }}>
+                <div className="daily-header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+                  <h3 style={{ textTransform: 'uppercase', letterSpacing: '0.02em', fontSize: '20px' }}>{dateKey}</h3>
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    {day.totalVol > 0 && <span className="daily-meta" style={{ fontFamily: 'monospace', color: 'var(--apple-text)' }}>VOL: {day.totalVol.toLocaleString()} KG</span>}
+                    {day.totalCals > 0 && <span className="daily-meta" style={{ fontFamily: 'monospace', color: '#ff9500' }}>BURN: {day.totalCals} KCAL</span>}
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </>
+                </div>
+                {day.items.map(w => (
+                  <div key={w._id} className={`exercise-card ${w.type === 'cardio' ? 'cardio-card' : ''}`} style={{ borderRadius: '8px', border: '1px solid var(--apple-border)', boxShadow: 'none', marginBottom: '16px' }}>
+                    <div className="exercise-header" style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <h4 style={{ fontSize: '16px', letterSpacing: '0.02em', margin: 0 }}>{w.exercise}</h4>
+                      </div>
+                      <button className="delete-btn" style={{ background: 'transparent', color: 'var(--apple-text-secondary)', padding: '4px 8px' }} onClick={() => handleDelete(w._id)}>X</button>
+                    </div>
+                    <div className="set-list" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {w.sets.map((s, i) => (
+                        <div key={i} className="set-item" style={{ display: 'flex', justifyContent: 'space-between', background: 'transparent', borderBottom: '1px dotted rgba(0,0,0,0.1)', borderRadius: 0, padding: '4px 0', fontSize: '14px', fontFamily: 'monospace' }}>
+                          {w.type === 'strength' && <span className="set-item-index" style={{ width: '30px', color: 'var(--apple-text-secondary)' }}>S{String(i + 1).padStart(2, '0')}</span>}
+                          {w.type === 'cardio' ? (
+                            <>
+                              <span>{s.weight} MIN</span>
+                              <span style={{ color: '#ff9500' }}>{s.reps} KCAL</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>{s.weight === 0 ? 'BW' : `${s.weight} KG`}</span>
+                              <span>x {String(s.reps).padStart(2, '0')}</span>
+                            </>
+                          )}
+                          <button className="set-delete-btn" style={{ background: 'transparent', color: 'var(--apple-text-secondary)', padding: '0 8px', border: 'none', cursor: 'pointer' }} onClick={() => handleDeleteSet(w._id, i)}>×</button>
+                        </div>
+                      ))}
+                    </div>
+                    {w.notes && <div className="exercise-notes" style={{marginTop: '12px', fontSize: '13px', color: 'var(--apple-text-secondary)', borderLeft: '2px solid var(--apple-border)', paddingLeft: '8px', background: 'transparent'}}>{w.notes}</div>}
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
       )}
+    </>
+  )}
 
       {/* ══════════ 个人记录 Tab ══════════ */}
       {activeTab === 'pr' && (
@@ -1078,11 +895,8 @@ const Dashboard = () => {
       {activeTab === 'templates' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <h2 style={{ margin: 0 }}>训练模板</h2>
+            <h2 style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '16px' }}>DEPLOYED PROTOCOLS</h2>
           </div>
-          <p style={{ color: 'var(--apple-text-secondary)', fontSize: 15, marginBottom: 24, marginTop: -8 }}>
-            保存常用训练组合，下次一键加载，减少选动作的时间
-          </p>
           <TemplateManager
             templates={templates}
             onStartTemplate={handleStartTemplate}
