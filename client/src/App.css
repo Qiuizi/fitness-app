@@ -1235,11 +1235,82 @@ label {
   opacity: 0.9;
 }
 
-/* ══════════════════════════════════════════════════
-   AI 智能洞察面板
-══════════════════════════════════════════════════ */
-.ai-insights-panel {
+/* Calendar Check-in UI */
+.calendar-container {
+  background: var(--apple-card-bg);
+  border-radius: 20px;
+  padding: 24px;
+  margin-bottom: 30px;
+  box-shadow: var(--apple-shadow);
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.calendar-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.insight-badge {
+  background: rgba(0, 113, 227, 0.1);
+  color: var(--apple-blue);
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.insight-badge.fire {
+  background: rgba(255, 149, 0, 0.1);
+  color: #ff9500;
+}
+
+.calendar-grid {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.calendar-square {
+  min-width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.04);
+  transition: all 0.2s;
+  cursor: default;
+}
+
+.calendar-square.active {
+  background: #34c759;
+  box-shadow: 0 0 8px rgba(52, 199, 89, 0.4);
+}
+
+.calendar-square.today {
+  border: 2px solid var(--apple-text);
+}
+
+/* Template Playlist UI */
+.playlist-bar {
+  background: rgba(0, 113, 227, 0.05);
+  border: 1px solid rgba(0, 113, 227, 0.1);
+  padding: 12px;
+  border-radius: 12px;
   margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.playlist-progress {
+  font-size: 14px;
+  color: var(--apple-blue);
+  font-weight: 600;
 }
 
 .plateau-section {

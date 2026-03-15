@@ -785,7 +785,11 @@ const AddWorkout = () => {
 
   const addSet = () => {
     const last = sets[sets.length - 1];
-    setSets([...sets, { weight: last.weight, reps: '', done: false }]);
+    if (last) {
+      setSets([...sets, { weight: last.weight, reps: last.reps, done: false }]);
+    } else {
+      setSets([...sets, { weight: '', reps: '', done: false }]);
+    }
   };
 
   const removeSet = (i) => {

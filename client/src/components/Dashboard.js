@@ -749,6 +749,36 @@ const Dashboard = () => {
     vol: groupedWorkouts[k].totalVol,
   })).filter(d => d.vol > 0);
 
+  // V6.0 Calendar logic
+  const activeDaysSet = new Set(workouts.map(w => new Date(w.date).toLocaleDateString('zh-CN')));
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const generateCalendar = () => {
+    const days = [];
+    for (let i = 27; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      days.push({
+        date: d,
+        active: activeDaysSet.has(d.toLocaleDateString('zh-CN')),
+        isToday: i === 0
+      });
+    }
+    return days;
+  };
+  const calendarDays = generateCalendar();
+  
+  const getInsightMessage = () => {
+    const activeDaysThisWeek = calendarDays.slice(-7).filter(d => d.active).length;
+    if (workouts.length === 0) return { type: 'info', emoji: '💡', text: '开启你的第一次训练吧！' };
+    if (activeDaysThisWeek >= 4) return { type: 'fire', emoji: '🔥', text: '状态火热！你这周的训练超越了 90% 的用户。' };
+    if (activeDaysThisWeek >= 2) return { type: 'info', emoji: '💪', text: '保持着不错的节奏，汗水不会骗人。' };
+    if (activeDaysThisWeek === 1) return { type: 'info', emoji: '👍', text: '好的开始是成功的一半，明天继续吗？' };
+    return { type: 'warning', emoji: '🔋', text: '休息得不错！是时候重新找回训练节奏了。' };
+  };
+  const insight = getInsightMessage();
+
   const bwChartData = [...bodyWeightLog]
     .sort((a, b) => new Date(a.date) - new Date(b.date))
     .slice(-30)
@@ -767,7 +797,6 @@ const Dashboard = () => {
     { key: 'pr',        label: '个人记录' },
     { key: 'templates', label: '训练模板' },
     { key: 'body',      label: '体重' },
-    { key: 'ai',        label: '🤖 AI 教练' },
   ];
 
   return (
@@ -778,7 +807,6 @@ const Dashboard = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {user && <span className="nav-greeting">{user.username}</span>}
           <Link to="/add"><button style={{ padding: '7px 16px', fontSize: 14 }}>+ 记录训练</button></Link>
-          <button className="secondary" onClick={() => { console.log('AI button clicked'); setShowAICoach(true); }} style={{ padding: '7px 14px', fontSize: 14, cursor: 'pointer' }}>🤖 AI</button>
           <button className="secondary" onClick={() => setShowProfile(true)} style={{ padding: '7px 14px', fontSize: 14 }}>资料</button>
           <button className="secondary" onClick={logout} style={{ padding: '7px 14px', fontSize: 14 }}>退出</button>
         </div>
@@ -795,14 +823,27 @@ const Dashboard = () => {
             : '记录每一次训练，见证自己的成长'}
         </p>
 
+      {/* ── 规则智能洞察 & 打卡日历 ── */}
+      <div className="calendar-container">
+        <div className="calendar-header">
+          <h3>最近 28 天打卡</h3>
+          <div className={`insight-badge ${insight.type}`}>
+            {insight.emoji} {insight.text}
+          </div>
+        </div>
+        <div className="calendar-grid">
+          {calendarDays.map((day, i) => (
+            <div 
+              key={i} 
+              className={`calendar-square ${day.active ? 'active' : ''} ${day.isToday ? 'today' : ''}`} 
+              title={day.date.toLocaleDateString('zh-CN')} 
+            />
+          ))}
+        </div>
+      </div>
+
         {/* 今天练什么 */}
         <TodayCard todayPlan={todayPlan} templates={templates} onStartTemplate={handleStartTemplate} />
-
-        {/* 训练洞察 */}
-        <InsightCard insights={insights} />
-
-        {/* AI 智能洞察面板 */}
-        <AIInsightsPanel token={token} />
 
         {/* 个人里程碑 */}
         <PersonalMilestones prs={prs} stats={stats} />
@@ -1099,50 +1140,12 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* ══════════ AI 教练 Tab ══════════ */}
-      {activeTab === 'ai' && (
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <div>
-              <h2 style={{ margin: 0 }}>AI 私人教练</h2>
-              <p style={{ color: 'var(--apple-text-secondary)', fontSize: 14, marginTop: 4, marginBottom: 0 }}>
-                基于你的训练数据，给出个性化建议
-              </p>
-            </div>
-            <button onClick={() => setShowProfile(true)} style={{ padding: '8px 14px', fontSize: 14 }} className="secondary">
-              完善资料
-            </button>
-          </div>
-
-          {/* 资料完善提示 */}
-          {(!userProfile?.heightCm || !userProfile?.age) && (
-            <div className="profile-nudge" onClick={() => setShowProfile(true)}>
-              <span>📋</span>
-              <div>
-                <div style={{ fontWeight: 600 }}>完善身体数据，获得更准确的卡路里计算和 AI 建议</div>
-                <div style={{ fontSize: 13, color: 'var(--apple-text-secondary)', marginTop: 2 }}>点击填写身高、年龄、训练目标</div>
-              </div>
-              <span style={{ color: 'var(--apple-blue)', fontWeight: 600 }}>→</span>
-            </div>
-          )}
-
-          <AICoachModal onClose={() => {}} token={token} embedded />
-        </div>
-      )}
-
       {/* ── 模态框 ── */}
       {progressExercise && (
         <ProgressModal exercise={progressExercise} onClose={() => setProgressExercise(null)} token={token} />
       )}
       {showBWModal && (
         <BodyWeightModal onClose={() => setShowBWModal(false)} onSave={handleSaveBW} />
-      )}
-      {showAICoach && (
-        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: 'white', borderRadius: 16, padding: 24, maxWidth: 500, width: '90%', maxHeight: '80vh', overflow: 'auto', boxShadow: '0 10px 40px rgba(0,0,0,0.3)' }}>
-            <AICoachModal onClose={() => setShowAICoach(false)} token={token} />
-          </div>
-        </div>
       )}
       {showProfile && (
         <ProfileModal
