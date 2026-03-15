@@ -133,6 +133,69 @@ const InsightCard = ({ insights }) => {
   );
 };
 
+// ─── AI 智能洞察面板 ───────────────────────────────────────────────────────────
+const AIInsightsPanel = ({ token }) => {
+  const [insights, setInsights] = useState([]);
+  const [plateaus, setPlateaus] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!token) return;
+    
+    // 获取综合洞察
+    fetch(`${API_URL}/api/ai/insights`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+    })
+      .then(r => r.json())
+      .then(d => setInsights(d.insights || []))
+      .catch(() => {});
+
+    // 获取平台期检测
+    fetch(`${API_URL}/api/ai/plateaus`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+    })
+      .then(r => r.json())
+      .then(d => setPlateaus(d.plateaus || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  if (loading || (insights.length === 0 && plateaus.length === 0)) return null;
+
+  return (
+    <div className="ai-insights-panel">
+      {plateaus.length > 0 && (
+        <div className="plateau-section">
+          <div className="plateau-header">
+            <span className="plateau-icon">🎯</span>
+            <span className="plateau-title">平台期预警</span>
+          </div>
+          {plateaus.map((p, i) => (
+            <div key={i} className="plateau-item">
+              <div className="plateau-exercise">{p.exercise}</div>
+              <div className="plateau-suggestion">{p.suggestion}</div>
+              <div className="plateau-action">
+                <span className="plateau-target">目标: {p.targetWeight}kg</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="insights-section">
+        {insights.filter(i => i.type !== 'motivation').slice(0, 3).map((ins, i) => (
+          <div key={i} className={`insight-item ${ins.type}`}>
+            <span className="insight-emoji">{ins.icon}</span>
+            <span className="insight-content">{ins.text}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const TodayCard = ({ todayPlan, templates, onStartTemplate }) => {
   const todayDow = new Date().getDay();
   const plan = todayPlan?.find(p => p.dayOfWeek === todayDow);
@@ -451,10 +514,8 @@ const AICoachModal = ({ onClose, token, embedded }) => {
   if (embedded) return <div className="ai-embedded">{Inner}</div>;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-card wide ai-modal" onClick={e => e.stopPropagation()}>
-        {Inner}
-      </div>
+    <div>
+      {Inner}
     </div>
   );
 };
@@ -717,7 +778,7 @@ const Dashboard = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {user && <span className="nav-greeting">{user.username}</span>}
           <Link to="/add"><button style={{ padding: '7px 16px', fontSize: 14 }}>+ 记录训练</button></Link>
-          <button className="secondary" onClick={() => setShowAICoach(true)} style={{ padding: '7px 14px', fontSize: 14 }}>🤖 AI</button>
+          <button className="secondary" onClick={() => { console.log('AI button clicked'); setShowAICoach(true); }} style={{ padding: '7px 14px', fontSize: 14, cursor: 'pointer' }}>🤖 AI</button>
           <button className="secondary" onClick={() => setShowProfile(true)} style={{ padding: '7px 14px', fontSize: 14 }}>资料</button>
           <button className="secondary" onClick={logout} style={{ padding: '7px 14px', fontSize: 14 }}>退出</button>
         </div>
@@ -739,6 +800,9 @@ const Dashboard = () => {
 
         {/* 训练洞察 */}
         <InsightCard insights={insights} />
+
+        {/* AI 智能洞察面板 */}
+        <AIInsightsPanel token={token} />
 
         {/* 个人里程碑 */}
         <PersonalMilestones prs={prs} stats={stats} />
@@ -1074,7 +1138,11 @@ const Dashboard = () => {
         <BodyWeightModal onClose={() => setShowBWModal(false)} onSave={handleSaveBW} />
       )}
       {showAICoach && (
-        <AICoachModal onClose={() => setShowAICoach(false)} token={token} />
+        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'white', borderRadius: 16, padding: 24, maxWidth: 500, width: '90%', maxHeight: '80vh', overflow: 'auto', boxShadow: '0 10px 40px rgba(0,0,0,0.3)' }}>
+            <AICoachModal onClose={() => setShowAICoach(false)} token={token} />
+          </div>
+        </div>
       )}
       {showProfile && (
         <ProfileModal

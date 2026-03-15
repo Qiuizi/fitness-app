@@ -120,43 +120,116 @@ const semanticSearch = (query) => {
   return results.sort((a, b) => b.score - a.score).slice(0, 10);
 };
 
-// ─── 语音命令解析 ───────────────────────────────────────────────────────────
+// ─── 高级语音命令解析 ───────────────────────────────────────────────────────────
 const parseVoiceCommand = (text) => {
-  const patterns = [
-    { regex: /(\d+)\s*kg/i, weight: true },
-    { regex: /(\d+)\s*公斤/i, weight: true },
-    { regex: /(\d+)\s*斤/i, weight: true, factor: 0.5 },
-    { regex: /(\d+)\s*下/i, reps: true },
-    { regex: /(\d+)\s*次/i, reps: true },
-    { regex: /(\d+)\s*分钟/i, weight: true },
-    { regex: /(\d+)\s*千卡/i, reps: true },
+  const t = text.toLowerCase();
+  let result = { weight: '', reps: '', exercise: '', action: 'log' };
+  
+  // 检测意图
+  if (t.includes('完成') || t.includes('好了') || t.includes('结束') || t.includes('做完')) {
+    result.action = 'complete';
+  } else if (t.includes('休息') || t.includes('停') || t.includes('pause')) {
+    result.action = 'rest';
+  } else if (t.includes('下一组') || t.includes('继续') || t.includes('再来')) {
+    result.action = 'next';
+  } else if (t.includes('添加') || t.includes('加一组')) {
+    result.action = 'add';
+  } else if (t.includes('删除') || t.includes('去掉') || t.includes('不要')) {
+    result.action = 'remove';
+  } else if (t.includes('退出') || t.includes('结束训练')) {
+    result.action = 'exit';
+  } else if (t.includes('对') || t.includes('是的') || t.includes('没错')) {
+    result.action = 'confirm';
+  } else if (t.includes('不对') || t.includes('不是') || t.includes('重说')) {
+    result.action = 'deny';
+  }
+  
+  // 提取重量
+  const weightPatterns = [
+    { regex: /(\d+(?:\.\d+)?)\s*kg/i, factor: 1 },
+    { regex: /(\d+(?:\.\d+)?)\s*公斤/i, factor: 1 },
+    { regex: /(\d+)\s*斤/i, factor: 0.5 },
   ];
   
-  let result = { weight: '', reps: '' };
-  
-  patterns.forEach(p => {
-    const match = text.match(p.regex);
+  for (const p of weightPatterns) {
+    const match = t.match(p.regex);
     if (match) {
-      const val = parseFloat(match[1]);
-      if (p.weight) {
-        result.weight = p.factor ? Math.round(val * p.factor * 2) / 2 : val;
-      }
-      if (p.reps) {
-        result.reps = val;
-      }
+      result.weight = Math.round(parseFloat(match[1]) * p.factor * 2) / 2;
+      break;
     }
-  });
+  }
   
-  // 提取动作名称
+  // 提取次数
+  const repsPatterns = [
+    { regex: /(\d+)\s*下/i },
+    { regex: /(\d+)\s*次/i },
+    { regex: /(\d+)\s*个/i },
+  ];
+  
+  for (const p of repsPatterns) {
+    const match = t.match(p.regex);
+    if (match) {
+      result.reps = parseInt(match[1]);
+      break;
+    }
+  }
+  
+  // 提取时长（有氧）
+  const timeMatch = t.match(/(\d+)\s*(?:分钟|分|min)/i);
+  if (timeMatch) {
+    result.weight = parseInt(timeMatch[1]);
+  }
+  
+  // 提取动作名称（智能匹配）
   const allExercises = Object.values(EXERCISE_LIBRARY).flat();
   for (const ex of allExercises) {
-    if (text.includes(ex)) {
+    if (t.includes(ex.toLowerCase())) {
       result.exercise = ex;
       break;
     }
   }
   
+  // 备选：模糊匹配动作
+  if (!result.exercise) {
+    const simpleExercises = {
+      '卧推': '杠铃卧推', '推胸': '杠铃卧推', 'bench': '杠铃卧推',
+      '深蹲': '深蹲', 'squat': '深蹲',
+      '硬拉': '硬拉', 'deadlift': '硬拉',
+      '划船': '杠铃划船', 'row': '杠铃划船',
+      '引体': '引体向上', 'pullup': '引体向上', 'chinup': '引体向上',
+      '弯举': '杠铃弯举', 'curl': '杠铃弯举',
+      '推举': '杠铃推举', 'ohp': '杠铃推举',
+      '跑步': '跑步', 'run': '跑步',
+      '骑车': '动感单车', '单车': '动感单车',
+    };
+    for (const [key, value] of Object.entries(simpleExercises)) {
+      if (t.includes(key)) {
+        result.exercise = value;
+        break;
+      }
+    }
+  }
+  
   return result;
+};
+
+// 语音命令确认消息生成
+const generateVoiceConfirmation = (parsed) => {
+  if (parsed.action === 'confirm') return '好的，已确认';
+  if (parsed.action === 'deny') return '请再说一次';
+  if (parsed.action === 'complete') return '完成当前组';
+  if (parsed.action === 'rest') return '开始休息';
+  if (parsed.action === 'next') return '准备下一组';
+  if (parsed.action === 'add') return '添加一组';
+  if (parsed.action === 'remove') return '删除这组';
+  if (parsed.action === 'exit') return '结束训练';
+  
+  const parts = [];
+  if (parsed.exercise) parts.push(parsed.exercise);
+  if (parsed.weight) parts.push(`${parsed.weight}公斤`);
+  if (parsed.reps) parts.push(`${parsed.reps}次`);
+  
+  return parts.length > 0 ? `记录：${parts.join('×')}，确认吗？` : '请再说一遍';
 };
 
 const CARDIO_CAT = '有氧';
@@ -168,16 +241,17 @@ const isCardioEx = (ex, cat) => {
   return false;
 };
 
-// ─── 卡路里颜色辅助 ───────────────────────────────────────────────────────────
-const CalBadge = ({ cal }) => {
+// ─── 卡路里显示组件（带食物类比）────────────────────────────────────────────────
+const CalBadge = ({ cal, foodEquivalent }) => {
   if (!cal) return null;
   return (
     <span style={{
       fontSize: 12, fontWeight: 700, color: '#ff9500',
       background: 'rgba(255,149,0,0.1)', padding: '2px 8px',
-      borderRadius: 8, marginLeft: 8,
+      borderRadius: 8, marginLeft: 8, display: 'inline-flex', alignItems: 'center', gap: 4,
     }}>
-      约 {cal} 千卡
+      🔥 {cal} 千卡
+      {foodEquivalent && <span style={{ fontWeight: 500, fontSize: 11 }}>({foodEquivalent})</span>}
     </span>
   );
 };
@@ -222,7 +296,14 @@ const WorkoutSummary = ({ records, duration, calories, onDone }) => {
         {totalCal > 0 && (
           <div className="summary-stat" style={{ gridColumn: 'span 2', background: 'rgba(255,149,0,0.07)', border: '1px solid rgba(255,149,0,0.2)' }}>
             <div className="summary-stat-val" style={{ color: '#ff9500' }}>{totalCal}</div>
-            <div className="summary-stat-label" style={{ color: '#d87000' }}>消耗千卡</div>
+            <div className="summary-stat-label" style={{ color: '#d87000' }}>
+              千卡 {calories?.totalFoodEquivalent ? `(${calories.totalFoodEquivalent})` : ''}
+            </div>
+            {calories?.bodyWeight && (
+              <div style={{ fontSize: 10, color: '#999', marginTop: 2 }}>
+                基于体重 {calories.bodyWeight}kg
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -302,13 +383,13 @@ const SuggestionCard = ({ suggestion, onApply, lastRecord, energyLevel }) => {
           </div>
         )}
       </div>
-      <div className="suggestion-apply">应用</div>
+      <div className="suggestion-apply" onClick={onApply}>应用</div>
     </div>
   );
 };
 
 // ─── 单组输入行（完全可手动输入的版本）────────────────────────────────────────
-const SetRow = ({ set, index, isCardio, isBodyweight, onChange, onRemove, onComplete, isDone }) => {
+const SetRow = ({ set, index, isCardio, isBodyweight, onChange, onRemove, onComplete, isDone, onToggleBodyweight }) => {
   return (
     <div className={`gym-set-row ${isDone ? 'done' : ''}`}>
       <div className="gym-set-num">{index + 1}</div>
@@ -317,9 +398,20 @@ const SetRow = ({ set, index, isCardio, isBodyweight, onChange, onRemove, onComp
         {/* 重量 / 时长 */}
         <div className="gym-set-field">
           {isBodyweight ? (
-            <div className="gym-input bodyweight-display" onClick={() => onChange(index, 'weight', 2.5)}>
+            <div className="gym-input bodyweight-display" onClick={() => onToggleBodyweight?.(index)}>
               自重
             </div>
+          ) : isCardio ? (
+            <input
+              type="number"
+              inputMode="decimal"
+              className="gym-input"
+              value={set.weight === 0 || set.weight === '' ? '' : set.weight}
+              onChange={e => onChange(index, 'weight', e.target.value)}
+              placeholder="0"
+              disabled={isDone}
+              step="1"
+            />
           ) : (
             <input
               type="number"
@@ -335,9 +427,10 @@ const SetRow = ({ set, index, isCardio, isBodyweight, onChange, onRemove, onComp
           <span className="gym-input-label">{isCardio ? '分钟' : (isBodyweight ? '自重' : 'kg')}</span>
         </div>
 
-        <span className="gym-set-x">×</span>
+        <span className="gym-set-x">{isCardio ? '×' : '×'}</span>
 
-        {/* 次数 / 千卡 */}
+        {/* 次数 / 千卡（有氧不显示，后端自动计算） */}
+        {!isCardio && (
         <div className="gym-set-field">
           <input
             type="number"
@@ -349,9 +442,22 @@ const SetRow = ({ set, index, isCardio, isBodyweight, onChange, onRemove, onComp
             disabled={isDone}
             step="1"
           />
-          <span className="gym-input-label">{isCardio ? '千卡' : '次'}</span>
+          <span className="gym-input-label">次</span>
         </div>
+        )}
       </div>
+
+      {/* 自重切换按钮（力量训练） */}
+      {!isCardio && !isDone && (
+        <button 
+          type="button" 
+          className="bodyweight-toggle"
+          onClick={() => onToggleBodyweight?.(index)}
+          title={isBodyweight ? "切换到负重" : "切换到自重"}
+        >
+          {isBodyweight ? '🏋️' : '⚖️'}
+        </button>
+      )}
 
       {/* 快捷增减（非自重力量） */}
       {!isCardio && !isBodyweight && !isDone && (
@@ -366,6 +472,14 @@ const SetRow = ({ set, index, isCardio, isBodyweight, onChange, onRemove, onComp
         <div className="set-quick-btns rep-btns">
           <button type="button" className="sqb" onClick={() => onChange(index, 'reps', Math.max(0, (parseInt(set.reps) || 0) - 1))}>-1</button>
           <button type="button" className="sqb" onClick={() => onChange(index, 'reps', (parseInt(set.reps) || 0) + 1)}>+1</button>
+        </div>
+      )}
+
+      {/* 有氧运动快捷时长按钮 */}
+      {isCardio && !isDone && (
+        <div className="set-quick-btns cardio-btns">
+          <button type="button" className="sqb" onClick={() => onChange(index, 'weight', Math.max(0, (parseFloat(set.weight) || 0) - 5))}>-5m</button>
+          <button type="button" className="sqb" onClick={() => onChange(index, 'weight', (parseFloat(set.weight) || 0) + 5)}>+5m</button>
         </div>
       )}
 
@@ -418,6 +532,8 @@ const AddWorkout = () => {
   // 语音输入状态
   const [isListening, setIsListening] = useState(false);
   const [voiceResult, setVoiceResult] = useState(null);
+  const [pendingVoiceCommand, setPendingVoiceCommand] = useState(null);
+  const [voiceConfirmationMode, setVoiceConfirmationMode] = useState(false);
   const recognitionRef = useRef(null);
   const [lastRecord, setLastRecord] = useState(null);
   const [suggestion, setSuggestion] = useState(null);
@@ -427,6 +543,35 @@ const AddWorkout = () => {
   const [timerDuration, setTimerDuration] = useState(0);
   const [timerActive, setTimerActive] = useState(false);
   const [energyLevel, setEnergyLevel] = useState(3); // 1-5 能量水平
+  
+  // 有氧计时器
+  const [cardioTimer, setCardioTimer] = useState(0);
+  const [cardioTimerRunning, setCardioTimerRunning] = useState(false);
+  
+  useEffect(() => {
+    let id = null;
+    if (cardioTimerRunning) {
+      id = setInterval(() => setCardioTimer(t => t + 1), 1000);
+    }
+    return () => clearInterval(id);
+  }, [cardioTimerRunning]);
+  
+  const startCardioTimer = () => {
+    setCardioTimerRunning(true);
+  };
+  
+  const pauseCardioTimer = () => {
+    setCardioTimerRunning(false);
+  };
+  
+  const finishCardioTimer = () => {
+    setCardioTimerRunning(false);
+    const mins = Math.floor(cardioTimer / 60);
+    if (mins > 0) {
+      setSets([{ weight: mins, reps: 0, done: false }]);
+    }
+    setCardioTimer(0);
+  };
   
   useEffect(() => {
     let id = null;
@@ -487,20 +632,42 @@ const AddWorkout = () => {
       
       // 解析语音命令
       const parsed = parseVoiceCommand(transcript);
-      if (parsed.weight !== '' || parsed.reps !== '') {
-        // 更新当前组的值
-        const ns = [...sets];
-        if (ns.length > 0) {
-          if (parsed.weight !== '') ns[0].weight = parsed.weight;
-          if (parsed.reps !== '') ns[0].reps = parsed.reps;
-          setSets(ns);
+      
+      // 确认模式：等待用户确认
+      if (voiceConfirmationMode) {
+        if (parsed.action === 'confirm' || parsed.action === 'deny') {
+          if (parsed.action === 'confirm' && pendingVoiceCommand) {
+            // 执行待确认的命令
+            executeVoiceCommand(pendingVoiceCommand);
+            setVoiceResult('已确认');
+          } else {
+            setVoiceResult('已取消，请重说');
+          }
+          setVoiceConfirmationMode(false);
+          setPendingVoiceCommand(null);
+          return;
         }
+      }
+      
+      // 检查是否需要确认
+      if (parsed.action === 'log' && (parsed.weight || parsed.reps)) {
+        setPendingVoiceCommand(parsed);
+        setVoiceConfirmationMode(true);
+        setVoiceResult(generateVoiceConfirmation(parsed));
+        return;
+      }
+      
+      // 直接执行其他命令
+      if (parsed.action !== 'log') {
+        executeVoiceCommand(parsed);
+        setVoiceResult(generateVoiceConfirmation(parsed));
       }
     };
 
     recognition.onerror = (event) => {
       console.error('语音识别错误:', event.error);
       setIsListening(false);
+      setVoiceConfirmationMode(false);
     };
 
     recognition.onend = () => {
@@ -510,6 +677,38 @@ const AddWorkout = () => {
     recognition.start();
     recognitionRef.current = recognition;
   };
+  
+  // 执行语音命令
+  const executeVoiceCommand = (parsed) => {
+    if (parsed.action === 'complete') {
+      const undoneIndex = sets.findIndex(s => !s.done);
+      if (undoneIndex !== -1) {
+        handleSetComplete(undoneIndex);
+      }
+    } else if (parsed.action === 'rest') {
+      setTimerDuration(getRecommendedRestTime());
+      setTimerActive(true);
+    } else if (parsed.action === 'add') {
+      addSet();
+    } else if (parsed.action === 'remove') {
+      removeSet(sets.length - 1);
+    } else if (parsed.action === 'next') {
+      const undoneIndex = sets.findIndex(s => !s.done);
+      if (undoneIndex !== -1) {
+        handleSetComplete(undoneIndex);
+      }
+    } else if (parsed.action === 'exit') {
+      handleFinishExercise();
+    } else if (parsed.action === 'log') {
+      // 更新数据
+      const ns = [...sets];
+      if (ns.length > 0) {
+        if (parsed.weight !== '') ns[0].weight = parsed.weight;
+        if (parsed.reps !== '') ns[0].reps = parsed.reps;
+        setSets(ns);
+      }
+    }
+  };
 
   // 加载历史 + 智能建议
   const loadExerciseData = async (ex, cardio) => {
@@ -518,7 +717,14 @@ const AddWorkout = () => {
     setLastRecord(null);
 
     if (cardio) {
-      setSets([{ weight: 30, reps: 300, done: false }]);
+      // 有氧运动根据类型设置典型时长
+      const cardioDefaults = {
+        '跑步': 30, '快走': 30, '骑行': 45, '跳绳': 20,
+        '游泳': 30, 'HIIT': 20, '爬楼梯': 20, '椭圆机': 30,
+        '划船机': 30, '登山机': 20, '散步': 30,
+      };
+      const defaultMins = cardioDefaults[ex] || 30;
+      setSets([{ weight: defaultMins, reps: 0, done: false }]);
       setIsLoading(false);
       return;
     }
@@ -548,6 +754,11 @@ const AddWorkout = () => {
     setExerciseType(cardio ? 'cardio' : 'strength');
     setNotes('');
     setSearchText('');
+    // 重置有氧计时器
+    if (cardio) {
+      setCardioTimer(0);
+      setCardioTimerRunning(false);
+    }
     await loadExerciseData(ex, cardio);
     setPhase('log');
   };
@@ -580,6 +791,18 @@ const AddWorkout = () => {
   const removeSet = (i) => {
     if (sets.length <= 1) return;
     setSets(sets.filter((_, j) => j !== i));
+  };
+
+  // 切换自重/负重
+  const handleToggleBodyweight = (i) => {
+    const ns = [...sets];
+    const current = ns[i];
+    if (current.weight === 0 || current.weight === '0') {
+      ns[i] = { ...current, weight: '' };
+    } else {
+      ns[i] = { ...current, weight: 0 };
+    }
+    setSets(ns);
   };
 
   // 获取有效组数
@@ -838,10 +1061,17 @@ const AddWorkout = () => {
         </button>
       </div>
       
-      {/* 语音识别结果显示 */}
+      {/* 语音识别结果显示 + TTS 反馈 */}
       {voiceResult && (
-        <div className="voice-result-toast">
-          识别到：「{voiceResult}」
+        <div className={`voice-result-toast ${voiceConfirmationMode ? 'confirming' : ''}`}>
+          <div className="voice-icon">{voiceConfirmationMode ? '🤔' : '✅'}</div>
+          <div className="voice-text">
+            {voiceConfirmationMode ? (
+              <span>「{voiceResult}」请说"对"或"不对"</span>
+            ) : (
+              <span>{voiceResult}</span>
+            )}
+          </div>
         </div>
       )}
 
@@ -870,6 +1100,29 @@ const AddWorkout = () => {
         <span className={`type-tag ${isCardio ? 'cardio' : 'strength'}`}>{isCardio ? '有氧' : '力量'}</span>
         {isLoading && <span style={{ fontSize: 12, color: 'var(--apple-text-secondary)', marginLeft: 8 }}>读取中...</span>}
       </div>
+
+      {/* 有氧计时器 */}
+      {isCardio && (
+        <div style={{ marginBottom: 16, padding: 16, background: 'rgba(0,113,227,0.08)', borderRadius: 12, textAlign: 'center' }}>
+          <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--apple-blue)', marginBottom: 12 }}>
+            {Math.floor(cardioTimer / 60)}:{String(cardioTimer % 60).padStart(2, '0')}
+          </div>
+          {!cardioTimerRunning ? (
+            <button onClick={startCardioTimer} style={{ background: 'var(--apple-blue)', color: 'white', padding: '10px 32px', fontSize: 16, borderRadius: 20, border: 'none', marginRight: 8 }}>
+              ▶️ 开始计时
+            </button>
+          ) : (
+            <button onClick={pauseCardioTimer} style={{ background: '#ff9500', color: 'white', padding: '10px 24px', fontSize: 16, borderRadius: 20, border: 'none', marginRight: 8 }}>
+              ⏸️ 暂停
+            </button>
+          )}
+          {cardioTimer > 0 && (
+            <button onClick={finishCardioTimer} style={{ background: '#34c759', color: 'white', padding: '10px 24px', fontSize: 16, borderRadius: 20, border: 'none' }}>
+              ✓ 完成 ({Math.floor(cardioTimer / 60)}分钟)
+            </button>
+          )}
+        </div>
+      )}
 
       {/* 上次记录 */}
       {lastRecord && !isCardio && (
@@ -910,6 +1163,7 @@ const AddWorkout = () => {
             onChange={handleSetChange}
             onRemove={removeSet}
             onComplete={handleSetComplete}
+            onToggleBodyweight={handleToggleBodyweight}
             isDone={set.done}
           />
         ))}

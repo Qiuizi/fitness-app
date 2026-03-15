@@ -1236,6 +1236,119 @@ label {
 }
 
 /* ══════════════════════════════════════════════════
+   AI 智能洞察面板
+══════════════════════════════════════════════════ */
+.ai-insights-panel {
+  margin-bottom: 20px;
+}
+
+.plateau-section {
+  background: linear-gradient(135deg, #ff9500 0%, #ff3b30 100%);
+  border-radius: 18px;
+  padding: 16px;
+  margin-bottom: 12px;
+  color: white;
+}
+
+.plateau-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.plateau-icon {
+  font-size: 20px;
+}
+
+.plateau-title {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.plateau-item {
+  background: rgba(255,255,255,0.15);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.plateau-item:last-child {
+  margin-bottom: 0;
+}
+
+.plateau-exercise {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.plateau-suggestion {
+  font-size: 13px;
+  opacity: 0.9;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.plateau-action {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.plateau-target {
+  font-size: 12px;
+  font-weight: 600;
+  background: white;
+  color: #ff9500;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.insights-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.insight-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--apple-card-bg);
+  border: 1px solid var(--apple-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.insight-item.success {
+  border-left: 3px solid #34c759;
+}
+
+.insight-item.warning {
+  border-left: 3px solid #ff9500;
+}
+
+.insight-item.info {
+  border-left: 3px solid var(--apple-blue);
+}
+
+.insight-item.motivation {
+  border-left: 3px solid #5856d6;
+}
+
+.insight-emoji {
+  font-size: 18px;
+}
+
+.insight-content {
+  font-size: 13px;
+  color: var(--apple-text);
+  font-weight: 500;
+}
+
+/* ══════════════════════════════════════════════════
    今天练什么 TodayCard
 ══════════════════════════════════════════════════ */
 .today-card {
@@ -2193,6 +2306,18 @@ label {
   color: #34c759;
 }
 
+.set-quick-btns.cardio-btns .sqb {
+  background: rgba(255,149,0,0.1);
+  border-color: rgba(255,149,0,0.3);
+  color: #d87000;
+  font-size: 9px;
+}
+
+.set-quick-btns.cardio-btns .sqb:hover {
+  background: rgba(255,149,0,0.2);
+  border-color: #ff9500;
+}
+
 /* 语音输入按钮 */
 .voice-btn {
   width: 36px;
@@ -2231,14 +2356,32 @@ label {
 
 /* 语音识别结果提示 */
 .voice-result-toast {
-  background: rgba(0, 113, 227, 0.1);
-  border: 1px solid rgba(0, 113, 227, 0.3);
-  border-radius: 12px;
-  padding: 10px 16px;
+  background: linear-gradient(135deg, rgba(0, 113, 227, 0.15) 0%, rgba(88, 86, 214, 0.1) 100%);
+  border: 2px solid var(--apple-blue);
+  border-radius: 16px;
+  padding: 14px 18px;
   margin-bottom: 12px;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--apple-blue);
   animation: slideDown 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.voice-result-toast.confirming {
+  background: linear-gradient(135deg, rgba(255, 149, 0, 0.15) 0%, rgba(255, 59, 48, 0.1) 100%);
+  border-color: #ff9500;
+  color: #d87000;
+}
+
+.voice-icon {
+  font-size: 24px;
+}
+
+.voice-text {
+  flex: 1;
+  font-weight: 500;
 }
 
 /* 能量状态选择器 */
@@ -2306,6 +2449,27 @@ label {
 .set-quick-btns.rep-btns .sqb:hover {
   background: rgba(52,199,89,0.15);
   border-color: #34c759;
+}
+
+.bodyweight-toggle {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 16px;
+  background: rgba(0,113,227,0.08);
+  border: 1px solid rgba(0,113,227,0.2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.bodyweight-toggle:hover {
+  background: rgba(0,113,227,0.15);
+  border-color: var(--apple-blue);
+  transform: scale(1.05);
 }
 
 .set-remove-btn {
