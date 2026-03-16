@@ -630,171 +630,8 @@ const Dashboard = () => {
           </p>
         </div>
 
-        {/* ── Bento Grid 核心布局 ── */}
-        <div className="bento-grid">
-          
-          {/* 左侧：日历大卡片 */}
-          <div className="bento-item calendar-card">
-            <div className="card-header">
-              <h3>{new Date().getMonth() + 1}月打卡</h3>
-              <div className={`status-pill ${insight.type}`}>{insight.text}</div>
-            </div>
-            <div className="calendar-weekdays">
-              {['日', '一', '二', '三', '四', '五', '六'].map(d => <div key={d}>{d}</div>)}
-            </div>
-            <div className="calendar-grid">
-              {calendarDays.map((day, i) => (
-                <div key={i} className={`calendar-cell ${day ? '' : 'empty'} ${day?.active ? 'active' : ''} ${day?.isToday ? 'today' : ''}`}>
-                  {day && day.dayNum}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 右侧：今日计划 & 数据 */}
-          <div className="bento-col">
-            
-            {/* 1. 今日训练卡片 */}
-            <div className="bento-item today-card-new">
-              <div className="card-header">
-                <h3>今日计划</h3>
-                <span className="today-badge">Today</span>
-              </div>
-              {(() => {
-                const todayDow = new Date().getDay();
-                const plan = todayPlan?.find(p => p.dayOfWeek === todayDow);
-                const template = plan?.templateId ? templates.find(t => t._id === plan.templateId) : null;
-
-                if (!plan) return <div className="today-placeholder">今天没有安排计划</div>;
-                if (plan.isRestDay) return (
-                  <div className="today-content-row">
-                    <div className="today-icon rest">💤</div>
-                    <div>
-                      <div className="today-main-text">休息日</div>
-                      <div className="today-sub-text">肌肉在休息中生长</div>
-                    </div>
-                  </div>
-                );
-                if (template) return (
-                  <div className="today-content-row">
-                    <div className="today-icon train">🏋️</div>
-                    <div style={{ flex: 1 }}>
-                      <div className="today-main-text">{template.name}</div>
-                      <div className="today-sub-text">{template.exercises.length} 个动作</div>
-                    </div>
-                    <button className="small-action-btn" onClick={() => handleStartTemplate(template)}>开始</button>
-                  </div>
-                );
-                return (
-                  <div className="today-content-row">
-                    <div className="today-icon plan">📝</div>
-                    <div>
-                      <div className="today-main-text">{plan.label || '自由训练'}</div>
-                      <div className="today-sub-text">去健身房练点什么？</div>
-                    </div>
-                    <Link to="/add"><button className="small-action-btn">记录</button></Link>
-                  </div>
-                );
-              })()}
-            </div>
-
-            {/* 2. 数据概览小卡片组 */}
-            <div className="bento-row">
-              <div className="bento-item stat-mini-card">
-                <div className="stat-label">总容量</div>
-                <div className="stat-value">{stats ? (stats.totalVolume / 1000).toFixed(1) : '-'}</div>
-                <div className="stat-unit">吨</div>
-              </div>
-              <div className="bento-item stat-mini-card">
-                <div className="stat-label">总消耗</div>
-                <div className="stat-value">{stats?.totalCardioCalories || '-'}</div>
-                <div className="stat-unit">千卡</div>
-              </div>
-            </div>
-
-            {/* 3. 体重趋势预览 */}
-            <div className="bento-item chart-mini-card" onClick={() => setActiveTab('body')}>
-              <div className="card-header-mini">
-                <span>体重趋势</span>
-                <span className="trend-arrow">↗</span>
-              </div>
-              <div style={{ height: 60, marginTop: 10 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={bwChartData}>
-                     <defs>
-                      <linearGradient id="bwMini" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#34c759" stopOpacity={0.2} />
-                        <stop offset="100%" stopColor="#34c759" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <Area type="monotone" dataKey="weight" stroke="#34c759" strokeWidth={2} fill="url(#bwMini)" dot={false} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-        {/* ── Tabs ── */}
-        <div className="content-tabs" style={{ marginTop: 32 }}>
-          {TABS.map(t => (
-            <div key={t.key}
-              className={`content-tab ${activeTab === t.key ? 'active' : ''}`}
-              onClick={() => setActiveTab(t.key)}>
-              {t.label}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      </nav>
-      
-      {/* ── Hero ── */}
-      <div className="hero-section">
-        <h1 style={{ marginTop: 36, marginBottom: 6, fontFamily: 'var(--apple-font)' }}>
-          {user ? `你好，${user.username}` : '欢迎'}
-        </h1>
-        <p style={{ color: 'var(--apple-text-secondary)', fontSize: 13, marginBottom: 28 }}>
-          每一次流汗，都是对身体最好的投资
-        </p>
-
-      {/* ── 规则智能洞察 & 打卡日历 ── */}
-      <div className="calendar-container">
-          <div className="calendar-header">
-            <h3>{today.getMonth() + 1}月打卡记录</h3>
-            <div className={`insight-badge ${insight.type}`}>
-               {insight.text}
-            </div>
-          </div>
-          {/* 星期表头 */}
-          <div className="calendar-weekdays">
-            {['日', '一', '二', '三', '四', '五', '六'].map(d => (
-              <div key={d} className="cw-day">{d}</div>
-            ))}
-          </div>
-        <div className="calendar-grid month-view">
-          {calendarDays.map((day, i) => (
-            day ? (
-              <div 
-                key={i} 
-                className={`calendar-square ${day.active ? 'active' : ''} ${day.isToday ? 'today' : ''}`} 
-              >
-                <span className="day-num">{day.dayNum}</span>
-              </div>
-            ) : (
-              <div key={i} className="calendar-square empty" />
-            )
-          ))}
-        </div>
-      </div>
-
-        {/* 今天练什么 */}
-        <TodayCard todayPlan={todayPlan} templates={templates} onStartTemplate={handleStartTemplate} />
-      </div>
-
       {/* ── Tabs ── */}
-      <div className="content-tabs">
+      <div className="content-tabs" style={{ marginTop: 32 }}>
         {TABS.map(t => (
           <div key={t.key}
             className={`content-tab ${activeTab === t.key ? 'active' : ''}`}
@@ -807,15 +644,136 @@ const Dashboard = () => {
       {/* ══════════ 总览 Tab ══════════ */}
       {activeTab === 'overview' && (
         <div className="overview-grid">
-          {/* streak */}
-          {stats && (
-            <StreakWidget
-              streak={stats.streak}
-              longestStreak={stats.longestStreak}
-              shield={stats.streakShield}
-              onUseShield={handleUseShield}
-            />
+          {/* ── Bento Grid 核心布局 (仅在总览显示) ── */}
+          <div className="bento-grid">
+            
+            {/* 左侧：日历大卡片 */}
+            <div className="bento-item calendar-card">
+              <div className="card-header">
+                <h3>{new Date().getMonth() + 1}月打卡</h3>
+                <div className={`status-pill ${insight.type}`}>{insight.text}</div>
+              </div>
+              <div className="calendar-weekdays">
+                {['日', '一', '二', '三', '四', '五', '六'].map(d => <div key={d}>{d}</div>)}
+              </div>
+              <div className="calendar-grid">
+                {calendarDays.map((day, i) => (
+                  <div key={i} className={`calendar-cell ${day ? '' : 'empty'} ${day?.active ? 'active' : ''} ${day?.isToday ? 'today' : ''}`}>
+                    {day && day.dayNum}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 右侧：今日计划 & 数据 */}
+            <div className="bento-col">
+              
+              {/* 1. 今日训练卡片 */}
+              <div className="bento-item today-card-new">
+                <div className="card-header">
+                  <h3>今日计划</h3>
+                  <span className="today-badge">Today</span>
+                </div>
+                {(() => {
+                  const todayDow = new Date().getDay();
+                  const plan = todayPlan?.find(p => p.dayOfWeek === todayDow);
+                  const template = plan?.templateId ? templates.find(t => t._id === plan.templateId) : null;
+
+                  if (!plan) return <div className="today-placeholder">今天没有安排计划</div>;
+                  if (plan.isRestDay) return (
+                    <div className="today-content-row">
+                      <div className="today-icon rest">💤</div>
+                      <div>
+                        <div className="today-main-text">休息日</div>
+                        <div className="today-sub-text">肌肉在休息中生长</div>
+                      </div>
+                    </div>
+                  );
+                  if (template) return (
+                    <div className="today-content-row">
+                      <div className="today-icon train">🏋️</div>
+                      <div style={{ flex: 1 }}>
+                        <div className="today-main-text">{template.name}</div>
+                        <div className="today-sub-text">{template.exercises.length} 个动作</div>
+                      </div>
+                      <button className="small-action-btn" onClick={() => handleStartTemplate(template)}>开始</button>
+                    </div>
+                  );
+                  return (
+                    <div className="today-content-row">
+                      <div className="today-icon plan">📝</div>
+                      <div>
+                        <div className="today-main-text">{plan.label || '自由训练'}</div>
+                        <div className="today-sub-text">去健身房练点什么？</div>
+                      </div>
+                      <Link to="/add"><button className="small-action-btn">记录</button></Link>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* 2. 数据概览小卡片组 */}
+              <div className="bento-row">
+                <div className="bento-item stat-mini-card">
+                  <div className="stat-label">总容量</div>
+                  <div className="stat-value">{stats ? (stats.totalVolume / 1000).toFixed(1) : '-'}</div>
+                  <div className="stat-unit">吨</div>
+                </div>
+                <div className="bento-item stat-mini-card">
+                  <div className="stat-label">总消耗</div>
+                  <div className="stat-value">{stats?.totalCardioCalories || '-'}</div>
+                  <div className="stat-unit">千卡</div>
+                </div>
+              </div>
+
+              {/* 3. 体重趋势预览 */}
+              <div className="bento-item chart-mini-card" onClick={() => setActiveTab('body')}>
+                <div className="card-header-mini">
+                  <span>体重趋势</span>
+                  <span className="trend-arrow">↗</span>
+                </div>
+                <div style={{ height: 60, marginTop: 10 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={bwChartData}>
+                       <defs>
+                        <linearGradient id="bwMini" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#34c759" stopOpacity={0.2} />
+                          <stop offset="100%" stopColor="#34c759" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <Area type="monotone" dataKey="weight" stroke="#34c759" strokeWidth={2} fill="url(#bwMini)" dot={false} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          {/* 成就 (保留在 Bento Grid 下方) */}
+          {stats && stats.achievements.length > 0 && (
+            <div className="achievements-section" style={{ marginTop: 0 }}>
+              <div className="achievements-title">
+                已解锁成就
+                <span className="achievements-count">{stats.achievements.length} / {Object.keys(ACHIEVEMENTS).length}</span>
+              </div>
+              <div className="achievements-row">
+                {Object.keys(ACHIEVEMENTS).map(id => {
+                  const unlocked = stats.achievements.includes(id);
+                  const def = ACHIEVEMENTS[id];
+                  return (
+                    <div key={id} className={`achievement-badge ${unlocked ? 'unlocked' : 'locked'}`} title={def.desc}>
+                      <span className="badge-icon">{def.icon}</span>
+                      <span className="badge-name">{def.name}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           )}
+        </div>
+      )}
+
 
           {/* 核心数据卡 */}
           <div className="stats-grid-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px' }}>
