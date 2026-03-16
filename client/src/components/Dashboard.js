@@ -22,229 +22,281 @@ const ACHIEVEMENTS = {
   volume_100k:   { icon: '🚀',  name: '十万勇士',   desc: '力量总量超100,000kg' },
 };
 
-// ─── 个人动态里程碑组件 ────────────────────────────────────────────────────────
-const PersonalMilestones = ({ prs, stats }) => {
-  if (!prs || prs.length === 0 || !stats) return null;
+// ─── 日期工具：将任意日期转为 YYYY-MM-DD（本地时区）────────────────────────────
+const toLocalDateStr = (dateInput) => {
+  const d = new Date(dateInput);
+  const year  = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day   = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
-  // 根据用户数据生成个人里程碑
-  const generateMilestones = () => {
-    const milestones = [];
-    
-    // 检查是否有停滞的动作（超过8周没有进步）
-    prs.forEach(pr => {
-      const lastDate = new Date(pr.date);
-      const weeksStagnant = Math.floor((Date.now() - lastDate) / (7 * 24 * 60 * 60 * 1000));
-      
-      if (weeksStagnant >= 6) {
-        const targetWeight = pr.weight + 2.5;
-        milestones.push({
-          id: `breakthrough_${pr.exercise}`,
-          icon: '🎯',
-          title: '突破机会',
-          desc: `${pr.exercise} 停滞${weeksStagnant}周`,
-          target: `${targetWeight}kg`,
-          action: '挑战',
-          color: '#5856d6',
-        });
-      }
-    });
-    
-    // 连续训练天数里程碑
-    if (stats.streak > 0) {
-      const nextStreak = [3, 7, 14, 30, 50, 100].find(s => s > stats.streak);
-      if (nextStreak) {
-        milestones.push({
-          id: `streak_${nextStreak}`,
-          icon: '🔥',
-          title: '连续打卡',
-          desc: `再训练 ${nextStreak - stats.streak} 天`,
-          target: `${nextStreak} 天`,
-          action: '加油',
-          color: '#ff9500',
-        });
-      }
-    }
-    
-    // 训练量里程碑
-    if (stats.totalVolume > 0) {
-      const nextVolume = [1000, 5000, 10000, 50000, 100000].find(v => v > stats.totalVolume);
-      if (nextVolume) {
-        milestones.push({
-          id: `volume_${nextVolume}`,
-          icon: '🏗️',
-          title: '力量积累',
-          desc: '累计训练量',
-          target: `${(nextVolume / 1000).toFixed(0)}吨`,
-          action: '加油',
-          color: '#0071e3',
-        });
-      }
-    }
-    
-    return milestones.slice(0, 3); // 最多显示3个
+// ─── 月历组件（完全独立，支持多月导航）──────────────────────────────────────────
+const MonthCalendar = ({ activeDates }) => {
+  const today = new Date();
+  const [viewYear,  setViewYear]  = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth()); // 0-11
+
+  const activeDateSet = new Set(activeDates || []);
+
+  // 当月信息
+  const daysInMonth   = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const firstWeekday  = new Date(viewYear, viewMonth, 1).getDay(); // 0=Sunday
+  const todayStr      = toLocalDateStr(today);
+
+  // 本月打卡天数
+  const thisMonthCount = [...activeDateSet].filter(d => {
+    const [y, m] = d.split('-').map(Number);
+    return y === viewYear && m - 1 === viewMonth;
+  }).length;
+
+  const prevMonth = () => {
+    if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11); }
+    else setViewMonth(m => m - 1);
+  };
+  const nextMonth = () => {
+    // 不允许超过今天所在月
+    const isCurrentMonth = viewYear === today.getFullYear() && viewMonth === today.getMonth();
+    if (isCurrentMonth) return;
+    if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0); }
+    else setViewMonth(m => m + 1);
   };
 
-  const milestones = generateMilestones();
-  if (milestones.length === 0) return null;
+  const isCurrentMonth = viewYear === today.getFullYear() && viewMonth === today.getMonth();
+  const monthName = new Date(viewYear, viewMonth, 1).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' });
+
+  // 生成日历格子
+  const cells = [];
+  for (let i = 0; i < firstWeekday; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    cells.push({
+      day: d,
+      dateStr,
+      isToday:  dateStr === todayStr,
+      isActive: activeDateSet.has(dateStr),
+      isFuture: dateStr > todayStr,
+    });
+  }
+
+  // 状态文字
+  const getInsight = () => {
+    if (!isCurrentMonth) return null;
+    const dow = today.getDay();
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - dow);
+    const weekStartStr = toLocalDateStr(weekStart);
+    const weekCount = [...activeDateSet].filter(d => d >= weekStartStr && d <= todayStr).length;
+    if (weekCount >= 4) return { type: 'fire', text: '本周状态极佳' };
+    if (weekCount >= 2) return { type: 'info', text: '保持节奏' };
+    if (weekCount === 1) return { type: 'info', text: '继续加油' };
+    return { type: 'warning', text: '今天开始打卡' };
+  };
+  const insight = getInsight();
 
   return (
-    <div className="personal-milestones">
-      <div className="pm-header">
-        <span className="pm-title">个人里程碑</span>
-        <span className="pm-badge">个性化</span>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* Header */}
+      <div className="card-header" style={{ marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <h3 style={{ margin: 0 }}>{monthName}</h3>
+          {thisMonthCount > 0 && (
+            <span style={{
+              fontSize: 11, fontWeight: 700,
+              background: 'var(--c-blue-dim)', color: 'var(--c-blue)',
+              padding: '3px 8px', borderRadius: 99,
+              letterSpacing: '0.04em',
+            }}>
+              {thisMonthCount}次
+            </span>
+          )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {insight && (
+            <span className={`status-pill ${insight.type}`} style={{ marginRight: 8 }}>
+              {insight.text}
+            </span>
+          )}
+          <button className="calendar-nav-btn" onClick={prevMonth} title="上个月">‹</button>
+          <button
+            className="calendar-nav-btn"
+            onClick={nextMonth}
+            disabled={isCurrentMonth}
+            style={{ opacity: isCurrentMonth ? 0.3 : 1 }}
+            title="下个月"
+          >›</button>
+        </div>
       </div>
-      <div className="pm-list">
-        {milestones.map(m => (
-          <div key={m.id} className="pm-item" style={{ borderLeftColor: m.color }}>
-            <span className="pm-icon">{m.icon}</span>
-            <div className="pm-content">
-              <div className="pm-target">{m.target}</div>
-              <div className="pm-desc">{m.desc}</div>
+
+      {/* Weekday Headers */}
+      <div className="calendar-weekdays">
+        {['日','一','二','三','四','五','六'].map(d => <div key={d}>{d}</div>)}
+      </div>
+
+      {/* Day Grid */}
+      <div className="calendar-grid">
+        {cells.map((cell, i) => {
+          if (!cell) return <div key={`empty-${i}`} className="calendar-cell empty" />;
+          return (
+            <div
+              key={cell.dateStr}
+              className={[
+                'calendar-cell',
+                cell.isActive  ? 'active'  : '',
+                cell.isToday   ? 'today'   : '',
+                cell.isFuture  ? 'future'  : '',
+              ].join(' ').trim()}
+              title={cell.isActive ? `${cell.dateStr} 已打卡` : cell.dateStr}
+            >
+              {cell.day}
             </div>
-            <button className="pm-action" style={{ background: m.color }}>{m.action}</button>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
 };
 
-const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-
-// ─── 小工具组件 ────────────────────────────────────────────────────────────────
-
-const InsightCard = ({ insights }) => {
-  if (!insights || insights.length === 0) return null;
-  return (
-    <div className="insight-panel">
-      <div className="insight-header">
-        <span className="insight-label">训练洞察</span>
-        <span className="insight-badge">NEW</span>
-      </div>
-      <div className="insight-list">
-        {insights.map((ins, i) => (
-          <div key={i} className="insight-row">
-            <span className="insight-icon">{ins.icon}</span>
-            <span className="insight-text">{ins.text}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
+// ─── Streak Widget ────────────────────────────────────────────────────────────
 const StreakWidget = ({ streak, longestStreak, shield, onUseShield }) => {
   const isStrong = streak >= 7;
-  const pct = Math.min(100, (streak / Math.max(longestStreak, 7)) * 100);
+  const pct = longestStreak > 0 ? Math.min(100, (streak / longestStreak) * 100) : 0;
 
   return (
-    <div className="streak-widget">
-      <div className="streak-top">
+    <div style={{
+      background: 'var(--text-1)',
+      borderRadius: 'var(--r-xl)',
+      padding: '20px',
+      color: 'white',
+      boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
         <div>
-          <div className="streak-main-num">{streak}</div>
-          <div className="streak-main-label">天连续打卡</div>
+          <div style={{ fontSize: 48, fontWeight: 800, lineHeight: 1, letterSpacing: '-0.03em' }}>{streak}</div>
+          <div style={{ fontSize: 13, fontWeight: 600, opacity: 0.7, marginTop: 2 }}>天连续打卡</div>
         </div>
-        <div className="streak-fire">{streak === 0 ? '💤' : isStrong ? '🔥' : '✨'}</div>
+        <div style={{ fontSize: 32 }}>{streak === 0 ? '💤' : isStrong ? '🔥' : '✨'}</div>
       </div>
 
-      {/* 进度条：当前vs历史最长 */}
-      <div className="streak-bar-wrap">
-        <div className="streak-bar-track">
-          <div className="streak-bar-fill" style={{ width: `${pct}%` }} />
+      {longestStreak > 0 && (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ height: 4, background: 'rgba(255,255,255,0.15)', borderRadius: 99, overflow: 'hidden', marginBottom: 6 }}>
+            <div style={{ width: `${pct}%`, height: '100%', background: 'white', borderRadius: 99, transition: 'width 0.8s cubic-bezier(0.34,1.56,0.64,1)' }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, opacity: 0.6, fontWeight: 600 }}>
+            <span>当前 {streak}</span>
+            <span>最长 {longestStreak}</span>
+          </div>
         </div>
-        <div className="streak-bar-labels">
-          <span>当前 {streak}</span>
-          <span>最长 {longestStreak}</span>
-        </div>
+      )}
+
+      <div style={{ fontSize: 12, background: 'rgba(255,255,255,0.1)', borderRadius: 10, padding: '8px 10px', lineHeight: 1.4, opacity: 0.9 }}>
+        {streak === 0 ? '今天训练，开启连续打卡' :
+         streak < 3  ? `再 ${3 - streak} 天解锁「三连打卡」` :
+         streak < 7  ? `再 ${7 - streak} 天解锁「一周不间断」` :
+         streak < 30 ? `再 ${30 - streak} 天解锁「钢铁意志」` :
+         '连续打卡30天，你是真正的自律者 💎'}
       </div>
 
-      {/* 下一个里程碑 */}
-      <div className="streak-milestone">
-        {streak === 0
-          ? '今天训练，开启连续打卡'
-          : streak < 3
-          ? `再 ${3 - streak} 天解锁「三连打卡」`
-          : streak < 7
-          ? `再 ${7 - streak} 天解锁「一周不间断」`
-          : streak < 30
-          ? `再 ${30 - streak} 天解锁「钢铁意志」`
-          : '连续打卡30天，你是真正的自律者'}
-      </div>
-
-      {/* 免死金牌 */}
       {shield > 0 && streak === 0 && (
-        <button className="shield-btn" onClick={onUseShield}>
-          🛡️ 使用免死金牌（本月剩余 {shield} 次）
+        <button
+          onClick={onUseShield}
+          style={{ width: '100%', background: 'rgba(255,255,255,0.15)', color: 'white', fontSize: 13, padding: '10px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.2)', marginTop: 10, cursor: 'pointer' }}
+        >
+          🛡️ 使用免死金牌（剩余 {shield} 次）
         </button>
       )}
     </div>
   );
 };
 
+// ─── Template Manager ─────────────────────────────────────────────────────────
 const TemplateManager = ({ templates, onStartTemplate, onDelete, onCreateNew }) => {
   if (templates.length === 0) {
     return (
-        <div className="empty-state">
-          <h3 style={{ }}>暂无训练模板</h3>
-          <p style={{ color: 'var(--apple-text-secondary)', fontSize: 13 }}>创建一个固定的训练计划，提升效率。</p>
-          <Link to="/add">
-            <button style={{ marginTop: 16 }}>开始第一次训练</button>
-          </Link>
-        </div>
+      <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
+        <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 8 }}>暂无训练模板</div>
+        <div style={{ fontSize: 14, color: 'var(--text-3)', marginBottom: 24 }}>创建固定计划，每次训练更高效</div>
+        <Link to="/add"><button style={{ padding: '12px 28px' }}>开始第一次训练</button></Link>
+      </div>
     );
   }
   return (
-    <div className="template-list">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {templates.map(t => (
-        <div key={t._id} className="template-card">
-          <div className="template-info">
-              <div className="template-name">{t.name}</div>
-              <div className="template-exercises" style={{ fontSize: 11 }}>
+        <div key={t._id} style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--r-l)',
+          padding: '16px 18px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          transition: 'box-shadow 0.2s',
+        }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 3 }}>{t.name}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {t.exercises.map(e => e.exercise).join(' · ')}
             </div>
             {t.lastUsed && (
-                <div className="template-meta" style={{ fontSize: 10, color: 'var(--apple-text-secondary)' }}>
-                  上次使用: {new Date(t.lastUsed).toLocaleDateString('zh-CN')}
-                  {t.useCount > 1 && ` // 共 ${t.useCount} 次`}
-                </div>
+              <div style={{ fontSize: 11, color: 'var(--c-blue)', marginTop: 3, fontWeight: 500 }}>
+                上次使用 {new Date(t.lastUsed).toLocaleDateString('zh-CN')}
+                {t.useCount > 1 && ` · 共 ${t.useCount} 次`}
+              </div>
             )}
           </div>
-          <div className="template-actions">
-            <button onClick={() => onStartTemplate(t)}>开始</button>
-            <button className="secondary" style={{ padding: '14px 16px' }}
-              onClick={() => onDelete(t._id)}>删</button>
+          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+            <button onClick={() => onStartTemplate(t)} style={{ padding: '9px 18px', fontSize: 14 }}>开始</button>
+            <button
+              className="secondary"
+              onClick={() => onDelete(t._id)}
+              style={{ padding: '9px 14px', fontSize: 14, color: 'var(--c-red)' }}
+            >删</button>
           </div>
         </div>
       ))}
-      <button className="secondary template-new-btn" onClick={onCreateNew} style={{ fontWeight: 600 }}>
+      <button
+        className="secondary"
+        onClick={onCreateNew}
+        style={{ border: '1.5px dashed var(--border)', background: 'transparent', color: 'var(--text-3)', padding: 16, fontSize: 14, fontWeight: 600, borderRadius: 'var(--r-l)', marginTop: 4 }}
+      >
         + 新建模板
       </button>
     </div>
   );
 };
 
+// ─── Body Weight Modal ────────────────────────────────────────────────────────
 const BodyWeightModal = ({ onClose, onSave }) => {
   const [weight, setWeight] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-card" onClick={e => e.stopPropagation()}>
+      <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
         <h3>记录体重</h3>
         <label>日期</label>
         <input type="date" value={date} onChange={e => setDate(e.target.value)} />
         <label>体重 (kg)</label>
-        <input type="number" step="0.1" min="20" max="300"
+        <input
+          type="number" step="0.1" min="20" max="300"
           placeholder="例如 72.5" value={weight}
-          onChange={e => setWeight(e.target.value)} autoFocus />
-        <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-          <button onClick={() => weight && onSave(date, parseFloat(weight))} style={{ flex: 1 }}>确认</button>
+          onChange={e => setWeight(e.target.value)}
+          autoFocus
+        />
+        <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
           <button className="secondary" onClick={onClose} style={{ flex: 1 }}>取消</button>
+          <button onClick={() => weight && onSave(date, parseFloat(weight))} style={{ flex: 2 }} disabled={!weight}>
+            确认保存
+          </button>
         </div>
       </div>
     </div>
   );
 };
 
+// ─── Progress Modal ───────────────────────────────────────────────────────────
 const ProgressModal = ({ exercise, onClose, token }) => {
   const [data, setData] = useState([]);
   useEffect(() => {
@@ -263,42 +315,47 @@ const ProgressModal = ({ exercise, onClose, token }) => {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-card wide" onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h3 style={{ margin: 0 }}>{exercise} — 进步曲线</h3>
-          <button className="secondary" onClick={onClose} style={{ padding: '6px 14px' }}>关闭</button>
+          <h3 style={{ margin: 0 }}>{exercise}</h3>
+          <button className="secondary" onClick={onClose} style={{ padding: '6px 14px', fontSize: 13 }}>关闭</button>
         </div>
         {chartData.length < 2 ? (
-          <p style={{ color: 'var(--apple-text-secondary)', textAlign: 'center', padding: 40 }}>
+          <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-3)', fontSize: 14 }}>
             至少需要2次训练记录才能显示进步曲线
-          </p>
+          </div>
         ) : (
           <>
             <ResponsiveContainer width="100%" height={200}>
               <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="wg" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#0071e3" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#0071e3" stopOpacity={0} />
+                    <stop offset="5%" stopColor="var(--c-blue)" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="var(--c-blue)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
-                <XAxis dataKey="date" tick={{ fill: 'var(--apple-text-secondary)', fontSize: 12 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: 'var(--apple-text-secondary)', fontSize: 12 }} axisLine={false} tickLine={false} unit="kg" />
-                <Tooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 24px rgba(0,0,0,0.1)' }}
-                  formatter={v => [`${v} kg`, '最高重量']} />
-                <Area type="monotone" dataKey="weight" stroke="#0071e3" strokeWidth={2.5}
-                  fill="url(#wg)" dot={{ r: 4, fill: '#0071e3' }} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                <XAxis dataKey="date" tick={{ fill: 'var(--text-3)', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: 'var(--text-3)', fontSize: 12 }} axisLine={false} tickLine={false} unit="kg" />
+                <Tooltip
+                  contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-l)', fontSize: 13 }}
+                  formatter={v => [`${v} kg`, '最高重量']}
+                />
+                <Area type="monotone" dataKey="weight" stroke="var(--c-blue)" strokeWidth={2.5} fill="url(#wg)" dot={{ r: 4, fill: 'var(--c-blue)' }} />
               </AreaChart>
             </ResponsiveContainer>
-            <div className="progress-summary">
-              {data.length >= 2 && (() => {
-                const first = data[0].bestWeight;
-                const last = data[data.length - 1].bestWeight;
-                const diff = last - first;
-                return diff > 0
-                  ? <span className="progress-up">从 {first}kg 进步到 {last}kg，提升了 {diff}kg</span>
-                  : <span style={{ color: 'var(--apple-text-secondary)' }}>保持在 {last}kg，继续加油</span>;
-              })()}
-            </div>
+            {data.length >= 2 && (() => {
+              const first = data[0].bestWeight;
+              const last  = data[data.length - 1].bestWeight;
+              const diff  = +(last - first).toFixed(1);
+              return (
+                <div style={{ marginTop: 14, textAlign: 'center', fontSize: 14, fontWeight: 600,
+                  color: diff > 0 ? 'var(--c-green)' : 'var(--text-3)',
+                  background: diff > 0 ? 'var(--c-green-dim)' : 'var(--surface-3)',
+                  borderRadius: 10, padding: '8px 16px', display: 'inline-block', marginLeft: '50%', transform: 'translateX(-50%)',
+                }}>
+                  {diff > 0 ? `从 ${first}kg 进步到 ${last}kg，提升了 ${diff}kg` : `保持在 ${last}kg，继续加油`}
+                </div>
+              );
+            })()}
           </>
         )}
       </div>
@@ -306,7 +363,7 @@ const ProgressModal = ({ exercise, onClose, token }) => {
   );
 };
 
-// ─── 用户资料完善 Modal ───────────────────────────────────────────────────────
+// ─── Profile Modal ────────────────────────────────────────────────────────────
 const ProfileModal = ({ onClose, onSave, currentProfile }) => {
   const [form, setForm] = useState({
     heightCm:        currentProfile?.heightCm || '',
@@ -316,35 +373,27 @@ const ProfileModal = ({ onClose, onSave, currentProfile }) => {
     level:           currentProfile?.level || 'beginner',
     weeklyFrequency: currentProfile?.weeklyFrequency || 3,
   });
-
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-card wide" onClick={e => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-          <h3 style={{ margin: 0 }}>完善个人资料</h3>
-          <button className="secondary" onClick={onClose} style={{ padding: '6px 14px' }}>取消</button>
-        </div>
-        <p style={{ color: 'var(--apple-text-secondary)', fontSize: 14, marginTop: -8, marginBottom: 16 }}>
-          身体数据用于计算卡路里消耗和训练记录
+        <h3>个人资料</h3>
+        <p style={{ color: 'var(--text-3)', fontSize: 13, marginTop: -14, marginBottom: 20 }}>
+          用于计算卡路里消耗和个性化训练建议
         </p>
-
-        <div className="profile-form-grid">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
             <label>身高 (cm)</label>
-            <input type="number" placeholder="如 175" value={form.heightCm}
-              onChange={e => set('heightCm', e.target.value)} min="100" max="250" />
+            <input type="number" placeholder="175" value={form.heightCm} onChange={e => set('heightCm', e.target.value)} min="100" max="250" />
           </div>
           <div>
             <label>年龄</label>
-            <input type="number" placeholder="如 25" value={form.age}
-              onChange={e => set('age', e.target.value)} min="10" max="100" />
+            <input type="number" placeholder="25" value={form.age} onChange={e => set('age', e.target.value)} min="10" max="100" />
           </div>
           <div>
             <label>性别</label>
-            <select value={form.gender} onChange={e => set('gender', e.target.value)}
-              style={{ width: '100%', padding: '12px 14px', borderRadius: 12, border: '1px solid var(--apple-border)', fontSize: 15, fontFamily: 'inherit', background: 'white', marginTop: 8 }}>
+            <select value={form.gender} onChange={e => set('gender', e.target.value)}>
               <option value="">不填</option>
               <option value="male">男</option>
               <option value="female">女</option>
@@ -353,30 +402,40 @@ const ProfileModal = ({ onClose, onSave, currentProfile }) => {
           </div>
           <div>
             <label>每周训练天数</label>
-            <input type="number" value={form.weeklyFrequency}
-              onChange={e => set('weeklyFrequency', parseInt(e.target.value))} min="1" max="7" />
+            <input type="number" value={form.weeklyFrequency} onChange={e => set('weeklyFrequency', parseInt(e.target.value))} min="1" max="7" />
           </div>
-          <div className="profile-full-row">
+          <div style={{ gridColumn: '1 / -1' }}>
             <label>训练目标</label>
-            <div className="profile-options">
-              {[['muscle','增肌💪'],['fat_loss','减脂🔥'],['strength','增力🏋️'],['general','综合健身⚡']].map(([v,l]) => (
-                <div key={v} className={`profile-option ${form.goal === v ? 'active' : ''}`}
-                  onClick={() => set('goal', v)}>{l}</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+              {[['muscle','增肌'],['fat_loss','减脂'],['strength','增力'],['general','综合']].map(([v,l]) => (
+                <div key={v}
+                  onClick={() => set('goal', v)}
+                  style={{
+                    padding: '8px 16px', borderRadius: 99, fontSize: 14, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
+                    background: form.goal === v ? 'var(--c-blue)' : 'var(--surface-3)',
+                    color: form.goal === v ? '#fff' : 'var(--text-2)',
+                  }}
+                >{l}</div>
               ))}
             </div>
           </div>
-          <div className="profile-full-row">
+          <div style={{ gridColumn: '1 / -1' }}>
             <label>训练水平</label>
-            <div className="profile-options">
-              {[['beginner','新手（< 6个月）'],['intermediate','有基础（6月 - 2年）'],['advanced','进阶（> 2年）']].map(([v,l]) => (
-                <div key={v} className={`profile-option ${form.level === v ? 'active' : ''}`}
-                  onClick={() => set('level', v)}>{l}</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+              {[['beginner','新手'],['intermediate','有基础'],['advanced','进阶']].map(([v,l]) => (
+                <div key={v}
+                  onClick={() => set('level', v)}
+                  style={{
+                    padding: '8px 16px', borderRadius: 99, fontSize: 14, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
+                    background: form.level === v ? 'var(--text-1)' : 'var(--surface-3)',
+                    color: form.level === v ? '#fff' : 'var(--text-2)',
+                  }}
+                >{l}</div>
               ))}
             </div>
           </div>
         </div>
-
-        <button onClick={() => onSave(form)} style={{ width: '100%', marginTop: 16 }}>保存</button>
+        <button onClick={() => onSave(form)} style={{ width: '100%', marginTop: 20 }}>保存</button>
       </div>
     </div>
   );
@@ -395,6 +454,7 @@ const Dashboard = () => {
   const [templates, setTemplates]         = useState([]);
   const [todayPlan, setTodayPlan]         = useState([]);
   const [userProfile, setUserProfile]     = useState(null);
+  const [loading, setLoading]             = useState(true);
 
   const [period, setPeriod]               = useState('all');
   const [activeTab, setActiveTab]         = useState('overview');
@@ -404,14 +464,15 @@ const Dashboard = () => {
 
   const fetchAll = useCallback(async () => {
     if (!token) return;
+    setLoading(true);
     try {
       const [wRes, sRes, prRes, insRes, bwRes, profRes] = await Promise.all([
-        fetch(`${API_URL}/api/workouts?period=${period}`, { headers: { 'x-auth-token': token } }),
-        fetch(`${API_URL}/api/workouts/stats`,            { headers: { 'x-auth-token': token } }),
-        fetch(`${API_URL}/api/workouts/pr`,               { headers: { 'x-auth-token': token } }),
-        fetch(`${API_URL}/api/workouts/insights`,         { headers: { 'x-auth-token': token } }),
-        fetch(`${API_URL}/api/workouts/body-weight`,      { headers: { 'x-auth-token': token } }),
-        fetch(`${API_URL}/api/workouts/profile`,          { headers: { 'x-auth-token': token } }),
+        fetch(`${API_URL}/api/workouts?period=${period}`,  { headers: { 'x-auth-token': token } }),
+        fetch(`${API_URL}/api/workouts/stats`,             { headers: { 'x-auth-token': token } }),
+        fetch(`${API_URL}/api/workouts/pr`,                { headers: { 'x-auth-token': token } }),
+        fetch(`${API_URL}/api/workouts/insights`,          { headers: { 'x-auth-token': token } }),
+        fetch(`${API_URL}/api/workouts/body-weight`,       { headers: { 'x-auth-token': token } }),
+        fetch(`${API_URL}/api/workouts/profile`,           { headers: { 'x-auth-token': token } }),
       ]);
       if (wRes.ok)    setWorkouts(await wRes.json());
       if (sRes.ok)    setStats(await sRes.json());
@@ -425,11 +486,11 @@ const Dashboard = () => {
         setUserProfile(p.profile || null);
       }
     } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   }, [token, period]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // 保存用户资料
   const handleSaveProfile = async (form) => {
     try {
       const res = await fetch(`${API_URL}/api/workouts/profile`, {
@@ -448,7 +509,6 @@ const Dashboard = () => {
     } catch (e) { console.error(e); }
   };
 
-  // 使用免死金牌
   const handleUseShield = async () => {
     try {
       const res = await fetch(`${API_URL}/api/workouts/streak-shield`, {
@@ -458,7 +518,6 @@ const Dashboard = () => {
     } catch (e) { console.error(e); }
   };
 
-  // 删除模板
   const handleDeleteTemplate = async (id) => {
     if (!window.confirm('确认删除这个模板？')) return;
     try {
@@ -469,7 +528,6 @@ const Dashboard = () => {
     } catch (e) { console.error(e); }
   };
 
-  // 使用模板开始训练 → 跳转到 AddWorkout 并携带模板数据
   const handleStartTemplate = async (template) => {
     try {
       await fetch(`${API_URL}/api/workouts/templates/${template._id}/use`, {
@@ -479,7 +537,6 @@ const Dashboard = () => {
     navigate('/add', { state: { template } });
   };
 
-  // 删除整条训练
   const handleDelete = async (id) => {
     if (!window.confirm('确认删除这条训练记录？')) return;
     try {
@@ -489,15 +546,12 @@ const Dashboard = () => {
     } catch (e) { console.error(e); }
   };
 
-  // 删除单组
   const handleDeleteSet = async (workoutId, setIndex) => {
     try {
       const res = await fetch(`${API_URL}/api/workouts/${workoutId}/set/${setIndex}`, {
         method: 'DELETE', headers: { 'x-auth-token': token },
       });
-      if (res.ok) {
-        fetchAll();
-      }
+      if (res.ok) fetchAll();
     } catch (e) { console.error(e); }
   };
 
@@ -513,9 +567,12 @@ const Dashboard = () => {
   };
 
   // ── 数据处理 ──
+  // 从所有workouts中提取打卡日期集合（全量，不受period过滤影响时用stats）
+  const allActiveDates = workouts.map(w => toLocalDateStr(w.date));
+
   const groupedWorkouts = workouts.reduce((acc, w) => {
     const rawDate = new Date(w.date);
-    const key = rawDate.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' });
+    const key = rawDate.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
     if (!acc[key]) acc[key] = { rawDate, items: [], totalVol: 0, totalCals: 0 };
     acc[key].items.push(w);
     if (w.type === 'strength') acc[key].totalVol += w.sets.reduce((a, s) => a + s.weight * s.reps, 0);
@@ -531,59 +588,6 @@ const Dashboard = () => {
     date: groupedWorkouts[k].rawDate.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' }),
     vol: groupedWorkouts[k].totalVol,
   })).filter(d => d.vol > 0);
-
-  // V6.0 Calendar logic - 标准月历视图
-  const today = new Date();
-  const currentYear = today.getFullYear();
-  const currentMonth = today.getMonth(); // 0-11
-  
-  // 获取当月有多少天
-  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-  // 获取当月第一天是周几 (0-6)
-  const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
-  
-  // 修正后的安全日期比对格式
-  const formatDate = (dateObj) => {
-    const d = new Date(dateObj);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  };
-
-  const activeDaysSet = new Set(workouts.map(w => formatDate(w.date)));
-  
-  const generateCalendar = () => {
-    const days = [];
-    // 补齐月初空白
-    for (let i = 0; i < firstDayOfMonth; i++) {
-      days.push(null);
-    }
-    // 填充日期
-    for (let i = 1; i <= daysInMonth; i++) {
-      const d = new Date(currentYear, currentMonth, i);
-      const isToday = i === today.getDate();
-      days.push({
-        date: d,
-        dayNum: i,
-        active: activeDaysSet.has(formatDate(d)),
-        isToday
-      });
-    }
-    return days;
-  };
-  const calendarDays = generateCalendar();
-  
-  const getInsightMessage = () => {
-    // 计算本周打卡次数
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay()); // 周日
-    const thisWeekWorkouts = workouts.filter(w => new Date(w.date) >= startOfWeek);
-    const count = new Set(thisWeekWorkouts.map(w => new Date(w.date).toLocaleDateString())).size;
-
-    if (workouts.length === 0) return { type: 'info', text: '开启第一次训练' };
-    if (count >= 4) return { type: 'fire', text: '本周状态极佳' };
-    if (count >= 2) return { type: 'info', text: '保持节奏' };
-    return { type: 'warning', text: '该运动了' };
-  };
-  const insight = getInsightMessage();
 
   const bwChartData = [...bodyWeightLog]
     .sort((a, b) => new Date(a.date) - new Date(b.date))
@@ -605,90 +609,81 @@ const Dashboard = () => {
     { key: 'body',      label: '体重' },
   ];
 
+  const h = new Date().getHours();
+  const greeting = h < 6 ? '夜深了' : h < 11 ? '早上好' : h < 13 ? '中午好' : h < 18 ? '下午好' : '晚上好';
+
   return (
     <div>
       {/* ── Nav ── */}
       <nav className="nav">
-        <span className="nav-brand">💪 健身日记</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Link to="/add"><button className="nav-btn-primary">+ 记录</button></Link>
-          <button className="nav-btn-icon" onClick={() => setShowProfile(true)} title="设置">⚙️</button>
-          <button className="nav-btn-icon" onClick={logout} title="退出">🚪</button>
+        <span className="nav-brand">IRON</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Link to="/add">
+            <button className="nav-btn-primary">+ 训练</button>
+          </Link>
+          <button className="nav-btn-icon" onClick={() => setShowProfile(true)} title="个人资料" style={{ fontSize: 17 }}>⚙</button>
+          <button className="nav-btn-icon" onClick={logout} title="退出" style={{ fontSize: 16 }}>↗</button>
         </div>
       </nav>
-      
+
       {/* ── Hero ── */}
-      {/* 修复：补充了缺失的 </div> 来正确闭合 hero-section */}
       <div className="hero-section">
-        <div className="hero-header">
-          <h1 className="hero-greeting">
-            {(() => {
-              const h = new Date().getHours();
-              if (h < 11) return '早上好';
-              if (h < 13) return '中午好';
-              if (h < 18) return '下午好';
-              return '晚上好';
-            })()}，{user?.username || '朋友'}
-          </h1>
-          <p className="hero-date">
-            {new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}
-          </p>
-        </div>
+        <p className="hero-date">
+          {new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}
+        </p>
+        <h1 className="hero-greeting">
+          {greeting}，{user?.username || '朋友'}
+        </h1>
       </div>
 
       {/* ── Tabs ── */}
-      <div className="content-tabs" style={{ marginTop: 32 }}>
-        {TABS.map(t => (
-          <div key={t.key}
-            className={`content-tab ${activeTab === t.key ? 'active' : ''}`}
-            onClick={() => setActiveTab(t.key)}>
-            {t.label}
-          </div>
-        ))}
+      <div style={{ maxWidth: 'var(--max-w)', margin: '0 auto', padding: '0 20px' }}>
+        <div className="content-tabs">
+          {TABS.map(t => (
+            <div
+              key={t.key}
+              className={`content-tab ${activeTab === t.key ? 'active' : ''}`}
+              onClick={() => setActiveTab(t.key)}
+            >{t.label}</div>
+          ))}
+        </div>
       </div>
 
       {/* ══════════ 总览 Tab ══════════ */}
       {activeTab === 'overview' && (
         <div className="overview-grid">
-          {/* ── Bento Grid 核心布局 (仅在总览显示) ── */}
           <div className="bento-grid">
-            
-            {/* 左侧：日历大卡片 */}
+            {/* 左：日历（重写，支持多月导航，bug全修） */}
             <div className="bento-item calendar-card">
-              <div className="card-header">
-                <h3>{new Date().getMonth() + 1}月打卡</h3>
-                <div className={`status-pill ${insight.type}`}>{insight.text}</div>
-              </div>
-              <div className="calendar-weekdays">
-                {['日', '一', '二', '三', '四', '五', '六'].map(d => <div key={d}>{d}</div>)}
-              </div>
-              <div className="calendar-grid">
-                {calendarDays.map((day, i) => (
-                  <div key={i} className={`calendar-cell ${day ? '' : 'empty'} ${day?.active ? 'active' : ''} ${day?.isToday ? 'today' : ''}`}>
-                    {day && day.dayNum}
-                  </div>
-                ))}
-              </div>
+              <MonthCalendar activeDates={allActiveDates} />
             </div>
 
-            {/* 右侧：今日计划 & 数据 */}
+            {/* 右列 */}
             <div className="bento-col">
-              
-              {/* 1. 今日训练卡片 */}
+              {/* 今日计划 */}
               <div className="bento-item today-card-new">
                 <div className="card-header">
                   <h3>今日计划</h3>
-                  <span className="today-badge">Today</span>
+                  <span className="today-badge">TODAY</span>
                 </div>
                 {(() => {
                   const todayDow = new Date().getDay();
                   const plan = todayPlan?.find(p => p.dayOfWeek === todayDow);
                   const template = plan?.templateId ? templates.find(t => t._id === plan.templateId) : null;
 
-                  if (!plan) return <div className="today-placeholder">今天没有安排计划</div>;
+                  if (!plan) return (
+                    <div className="today-content-row">
+                      <div className="today-icon">📅</div>
+                      <div>
+                        <div className="today-main-text">自由安排</div>
+                        <div className="today-sub-text">去做点什么？</div>
+                      </div>
+                      <Link to="/add"><button className="small-action-btn">记录</button></Link>
+                    </div>
+                  );
                   if (plan.isRestDay) return (
                     <div className="today-content-row">
-                      <div className="today-icon rest">💤</div>
+                      <div className="today-icon">💤</div>
                       <div>
                         <div className="today-main-text">休息日</div>
                         <div className="today-sub-text">肌肉在休息中生长</div>
@@ -697,7 +692,7 @@ const Dashboard = () => {
                   );
                   if (template) return (
                     <div className="today-content-row">
-                      <div className="today-icon train">🏋️</div>
+                      <div className="today-icon">🏋️</div>
                       <div style={{ flex: 1 }}>
                         <div className="today-main-text">{template.name}</div>
                         <div className="today-sub-text">{template.exercises.length} 个动作</div>
@@ -707,10 +702,10 @@ const Dashboard = () => {
                   );
                   return (
                     <div className="today-content-row">
-                      <div className="today-icon plan">📝</div>
+                      <div className="today-icon">📝</div>
                       <div>
-                        <div className="today-main-text">{plan.label || '自由训练'}</div>
-                        <div className="today-sub-text">去健身房练点什么？</div>
+                        <div className="today-main-text">{plan.label || '训练日'}</div>
+                        <div className="today-sub-text">准备好了吗？</div>
                       </div>
                       <Link to="/add"><button className="small-action-btn">记录</button></Link>
                     </div>
@@ -718,192 +713,295 @@ const Dashboard = () => {
                 })()}
               </div>
 
-              {/* 2. 数据概览小卡片组 */}
+              {/* 数据小卡片 */}
               <div className="bento-row">
                 <div className="bento-item stat-mini-card">
-                  <div className="stat-label">总容量</div>
-                  <div className="stat-value">{stats ? (stats.totalVolume / 1000).toFixed(1) : '-'}</div>
-                  <div className="stat-unit">吨</div>
+                  <div className="stat-label">连续打卡</div>
+                  <div className="stat-value" style={{ color: stats?.streak > 0 ? 'var(--c-orange)' : 'var(--text-1)' }}>
+                    {loading ? '…' : (stats?.streak ?? 0)}
+                  </div>
+                  <div className="stat-unit">天</div>
                 </div>
                 <div className="bento-item stat-mini-card">
-                  <div className="stat-label">总消耗</div>
-                  <div className="stat-value">{stats?.totalCardioCalories || '-'}</div>
-                  <div className="stat-unit">千卡</div>
+                  <div className="stat-label">总训练量</div>
+                  <div className="stat-value">{loading ? '…' : stats ? (stats.totalVolume / 1000).toFixed(1) : '0'}</div>
+                  <div className="stat-unit">吨</div>
                 </div>
               </div>
 
-              {/* 3. 体重趋势预览 */}
-              <div className="bento-item chart-mini-card" onClick={() => setActiveTab('body')}>
-                <div className="card-header-mini">
-                  <span>体重趋势</span>
-                  <span className="trend-arrow">↗</span>
+              {/* 体重/图表 */}
+              {latestBW ? (
+                <div className="bento-item chart-mini-card" onClick={() => setActiveTab('body')} style={{ cursor: 'pointer' }}>
+                  <div className="card-header-mini">
+                    <span>体重</span>
+                    <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)' }}>{latestBW} kg</span>
+                  </div>
+                  <div style={{ height: 56, marginTop: 8 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={bwChartData}>
+                        <defs>
+                          <linearGradient id="bwMini" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="var(--c-green)" stopOpacity={0.2} />
+                            <stop offset="100%" stopColor="var(--c-green)" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <Area type="monotone" dataKey="weight" stroke="var(--c-green)" strokeWidth={2} fill="url(#bwMini)" dot={false} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
-                <div style={{ height: 60, marginTop: 10 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={bwChartData}>
-                       <defs>
-                        <linearGradient id="bwMini" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#34c759" stopOpacity={0.2} />
-                          <stop offset="100%" stopColor="#34c759" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <Area type="monotone" dataKey="weight" stroke="#34c759" strokeWidth={2} fill="url(#bwMini)" dot={false} />
-                    </AreaChart>
-                  </ResponsiveContainer>
+              ) : (
+                <div className="bento-item" style={{ cursor: 'pointer' }} onClick={() => setShowBWModal(true)}>
+                  <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                    <div style={{ fontSize: 24, marginBottom: 6 }}>⚖️</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-3)' }}>记录体重</div>
+                  </div>
                 </div>
-              </div>
-
+              )}
             </div>
           </div>
 
-          {/* 成就 (保留在 Bento Grid 下方) */}
+          {/* Streak Widget */}
+          {stats && (
+            <div style={{ marginBottom: 16 }}>
+              <StreakWidget
+                streak={stats.streak}
+                longestStreak={stats.longestStreak}
+                shield={stats.streakShield}
+                onUseShield={handleUseShield}
+              />
+            </div>
+          )}
+
+          {/* 成就 */}
           {stats && stats.achievements.length > 0 && (
-            <div className="achievements-section" style={{ marginTop: 0 }}>
-              <div className="achievements-title">
-                已解锁成就
-                <span className="achievements-count">{stats.achievements.length} / {Object.keys(ACHIEVEMENTS).length}</span>
+            <div style={{
+              background: 'var(--surface)',
+              borderRadius: 'var(--r-xl)',
+              padding: '20px',
+              border: '1px solid var(--border)',
+              boxShadow: 'var(--shadow-s)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <span style={{ fontSize: 15, fontWeight: 700 }}>成就</span>
+                <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--surface-3)', color: 'var(--text-3)', padding: '2px 8px', borderRadius: 99 }}>
+                  {stats.achievements.length} / {Object.keys(ACHIEVEMENTS).length}
+                </span>
               </div>
-              <div className="achievements-row">
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {Object.keys(ACHIEVEMENTS).map(id => {
                   const unlocked = stats.achievements.includes(id);
                   const def = ACHIEVEMENTS[id];
                   return (
-                    <div key={id} className={`achievement-badge ${unlocked ? 'unlocked' : 'locked'}`} title={def.desc}>
-                      <span className="badge-icon">{def.icon}</span>
-                      <span className="badge-name">{def.name}</span>
+                    <div key={id} title={def.desc} style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                      padding: '10px 12px', borderRadius: 'var(--r-m)', minWidth: 64,
+                      background: unlocked ? 'var(--c-blue-dim)' : 'var(--surface-3)',
+                      border: `1px solid ${unlocked ? 'rgba(0,113,227,0.2)' : 'transparent'}`,
+                      opacity: unlocked ? 1 : 0.35,
+                      filter: unlocked ? 'none' : 'grayscale(1)',
+                      transition: 'all 0.2s',
+                    }}>
+                      <span style={{ fontSize: 22 }}>{def.icon}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: unlocked ? 'var(--c-blue)' : 'var(--text-3)', textAlign: 'center', lineHeight: 1.3 }}>{def.name}</span>
                     </div>
                   );
                 })}
               </div>
             </div>
           )}
+
+          {/* 训练洞察 */}
+          {insights && insights.length > 0 && (
+            <div style={{
+              background: 'linear-gradient(135deg, var(--c-blue) 0%, var(--c-indigo) 100%)',
+              borderRadius: 'var(--r-xl)', padding: '20px', color: 'white',
+              boxShadow: '0 8px 32px rgba(0,113,227,0.25)', marginTop: 16,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <span style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>训练洞察</span>
+                <span style={{ fontSize: 9, fontWeight: 800, background: 'rgba(255,255,255,0.2)', padding: '2px 7px', borderRadius: 99, letterSpacing: '0.05em' }}>NEW</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {insights.slice(0, 3).map((ins, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.1)', borderRadius: 12, padding: '10px 14px' }}>
+                    <span style={{ fontSize: 16 }}>{ins.icon}</span>
+                    <span style={{ fontSize: 13, fontWeight: 500, lineHeight: 1.4 }}>{ins.text}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* ══════════ 训练历史 Tab ══════════ */}
+      {/* ══════════ 历史 Tab ══════════ */}
       {activeTab === 'history' && (
-        <>
-          <div className="period-filter" style={{ gap: '12px' }}>
+        <div style={{ maxWidth: 'var(--max-w)', margin: '0 auto', padding: '0 20px 80px' }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
             {[{ k: 'week', l: '最近7天' }, { k: 'month', l: '最近30天' }, { k: 'all', l: '全部' }].map(p => (
-              <button key={p.k}
-                className={period === p.k ? '' : 'secondary'}
-                style={{ padding: '8px 20px', borderRadius: '4px' }}
-                onClick={() => setPeriod(p.k)}>
-                {p.l}
-              </button>
+              <button
+                key={p.k}
+                onClick={() => setPeriod(p.k)}
+                style={{
+                  padding: '8px 18px', fontSize: 13, fontWeight: 600, borderRadius: 99,
+                  background: period === p.k ? 'var(--text-1)' : 'var(--surface-3)',
+                  color: period === p.k ? '#fff' : 'var(--text-2)',
+                }}
+              >{p.l}</button>
             ))}
           </div>
 
           {chartData.length >= 2 && (
-            <div className="chart-container" style={{ marginBottom: 28 }}>
-              <h3>训练量趋势</h3>
-              <ResponsiveContainer width="100%" height={180}>
+            <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-xl)', padding: '20px', marginBottom: 20, border: '1px solid var(--border)', boxShadow: 'var(--shadow-s)' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>训练量趋势</div>
+              <ResponsiveContainer width="100%" height={160}>
                 <AreaChart data={chartData}>
                   <defs>
-                    <linearGradient id="volG2" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0071e3" stopOpacity={0.12} />
-                      <stop offset="95%" stopColor="#0071e3" stopOpacity={0} />
+                    <linearGradient id="volG" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--c-blue)" stopOpacity={0.12} />
+                      <stop offset="95%" stopColor="var(--c-blue)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
-                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'var(--apple-text-secondary)', fontSize: 12 }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--apple-text-secondary)', fontSize: 12 }} />
-                  <Tooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 24px rgba(0,0,0,0.1)' }}
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-3)', fontSize: 11 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-3)', fontSize: 11 }} />
+                  <Tooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-l)', fontSize: 13 }}
                     formatter={v => [`${v.toLocaleString()} kg`, '训练量']} />
-                  <Area type="monotone" dataKey="vol" stroke="#0071e3" strokeWidth={2.5}
-                    fill="url(#volG2)" dot={{ r: 3, fill: '#0071e3' }} />
+                  <Area type="monotone" dataKey="vol" stroke="var(--c-blue)" strokeWidth={2} fill="url(#volG)" dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           )}
 
           {workouts.length === 0 ? (
-            <div className="empty-state" style={{ border: '1px dashed var(--apple-border)', background: 'transparent', boxShadow: 'none' }}>
-              <div className="empty-icon">📝</div>
-              <h3>暂无记录</h3>
-              <p>从今天开始，记录你的第一次训练。</p>
-              <Link to="/add"><button style={{marginTop: '20px', borderRadius: '4px'}}>开始记录</button></Link>
+            <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-3)' }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>📝</div>
+              <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 8, color: 'var(--text-1)' }}>暂无记录</div>
+              <div style={{ fontSize: 14, marginBottom: 24 }}>从今天开始，记录你的第一次训练</div>
+              <Link to="/add"><button style={{ padding: '12px 28px' }}>开始记录</button></Link>
             </div>
           ) : (
-            <div className="daily-groupings">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
               {sortedDates.map(dateKey => {
                 const day = groupedWorkouts[dateKey];
                 return (
-                  <div key={dateKey} className="daily-group" style={{ borderLeft: '4px solid var(--apple-blue)', paddingLeft: '20px', marginLeft: '10px' }}>
-                    <div className="daily-header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
-                      <h3 style={{ fontSize: '20px' }}>{dateKey}</h3>
+                  <div key={dateKey}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
+                      <span style={{ fontSize: 15, fontWeight: 700 }}>{dateKey}</span>
                       <div style={{ display: 'flex', gap: 12 }}>
-                        {day.totalVol > 0 && <span className="daily-meta" style={{ fontFamily: 'var(--apple-font)', color: 'var(--apple-text)' }}>容量: {day.totalVol.toLocaleString()} KG</span>}
-                        {day.totalCals > 0 && <span className="daily-meta" style={{ fontFamily: 'var(--apple-font)', color: '#ff9500' }}>消耗: {day.totalCals} KCAL</span>}
+                        {day.totalVol > 0 && <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-blue)' }}>{day.totalVol.toLocaleString()} kg</span>}
+                        {day.totalCals > 0 && <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-orange)' }}>{day.totalCals} kcal</span>}
                       </div>
                     </div>
-                    {day.items.map(w => (
-                      <div key={w._id} className={`exercise-card ${w.type === 'cardio' ? 'cardio-card' : ''}`} style={{ borderRadius: '8px', border: '1px solid var(--apple-border)', boxShadow: 'none', marginBottom: '16px' }}>
-                        <div className="exercise-header" style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <h4 style={{ fontSize: '16px', letterSpacing: '0.02em', margin: 0 }}>{w.exercise}</h4>
-                          </div>
-                          <button className="delete-btn" style={{ background: 'transparent', color: 'var(--apple-text-secondary)', padding: '4px 8px' }} onClick={() => handleDelete(w._id)}>X</button>
-                        </div>
-                        <div className="set-list" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          {w.sets.map((s, i) => (
-                            <div key={i} className="set-item" style={{ display: 'flex', justifyContent: 'space-between', background: 'transparent', borderBottom: '1px dotted rgba(0,0,0,0.1)', borderRadius: 0, padding: '4px 0', fontSize: '14px', fontFamily: 'monospace' }}>
-                              {w.type === 'strength' && <span className="set-item-index" style={{ width: '30px', color: 'var(--apple-text-secondary)' }}>S{String(i + 1).padStart(2, '0')}</span>}
-                              {w.type === 'cardio' ? (
-                                <>
-                                  <span>{s.weight} MIN</span>
-                                  <span style={{ color: '#ff9500' }}>{s.reps} KCAL</span>
-                                </>
-                              ) : (
-                                <>
-                                  <span>{s.weight === 0 ? 'BW' : `${s.weight} KG`}</span>
-                                  <span>x {String(s.reps).padStart(2, '0')}</span>
-                                </>
-                              )}
-                              <button className="set-delete-btn" style={{ background: 'transparent', color: 'var(--apple-text-secondary)', padding: '0 8px', border: 'none', cursor: 'pointer' }} onClick={() => handleDeleteSet(w._id, i)}>×</button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {day.items.map(w => (
+                        <div key={w._id} style={{
+                          background: 'var(--surface)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 'var(--r-l)',
+                          padding: '14px 16px',
+                          position: 'relative',
+                          overflow: 'hidden',
+                          boxShadow: 'var(--shadow-s)',
+                        }}>
+                          {/* Accent bar */}
+                          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: w.type === 'cardio' ? 'var(--c-orange)' : 'var(--c-blue)', borderRadius: '3px 0 0 3px' }} />
+                          <div style={{ paddingLeft: 10 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ fontSize: 15, fontWeight: 700 }}>{w.exercise}</span>
+                                {w.type === 'cardio' && (
+                                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--c-orange)', background: 'var(--c-orange-dim)', padding: '2px 7px', borderRadius: 99, textTransform: 'uppercase', letterSpacing: '0.04em' }}>有氧</span>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => handleDelete(w._id)}
+                                style={{ background: 'none', border: 'none', color: 'var(--text-4)', fontSize: 16, padding: '2px 6px', cursor: 'pointer', borderRadius: 6, lineHeight: 1 }}
+                              >×</button>
                             </div>
-                          ))}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                              {w.sets.map((s, i) => (
+                                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '4px 0', borderBottom: i < w.sets.length - 1 ? '1px solid var(--border)' : 'none', fontSize: 13 }}>
+                                  <span style={{ color: 'var(--text-4)', fontWeight: 700, fontFamily: 'var(--font-mono)', width: 28, flexShrink: 0 }}>
+                                    {w.type === 'strength' ? `S${String(i + 1).padStart(2, '0')}` : ''}
+                                  </span>
+                                  {w.type === 'cardio' ? (
+                                    <>
+                                      <span style={{ fontWeight: 600 }}>{s.weight} min</span>
+                                      {s.reps > 0 && <span style={{ color: 'var(--c-orange)', fontWeight: 600 }}>{s.reps} kcal</span>}
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span style={{ fontWeight: 600 }}>{s.weight === 0 ? '自重' : `${s.weight} kg`}</span>
+                                      <span style={{ color: 'var(--text-3)' }}>×</span>
+                                      <span style={{ fontWeight: 600 }}>{s.reps} 次</span>
+                                    </>
+                                  )}
+                                  <button
+                                    onClick={() => handleDeleteSet(w._id, i)}
+                                    style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-4)', fontSize: 14, padding: '2px 4px', cursor: 'pointer' }}
+                                  >×</button>
+                                </div>
+                              ))}
+                            </div>
+                            {w.notes && (
+                              <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-3)', fontStyle: 'italic' }}>{w.notes}</div>
+                            )}
+                          </div>
                         </div>
-                        {w.notes && <div className="exercise-notes" style={{marginTop: '12px', fontSize: '13px', color: 'var(--apple-text-secondary)', borderLeft: '2px solid var(--apple-border)', paddingLeft: '8px', background: 'transparent'}}>{w.notes}</div>}
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 );
               })}
             </div>
           )}
-        </>
+        </div>
       )}
 
       {/* ══════════ 个人记录 Tab ══════════ */}
       {activeTab === 'pr' && (
-        <div>
-          <h2 style={{ marginBottom: 20 }}>个人最佳记录</h2>
+        <div style={{ maxWidth: 'var(--max-w)', margin: '0 auto', padding: '0 20px 80px' }}>
           {prs.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-icon">🏆</div>
-              <h3>还没有个人记录</h3>
-              <p>完成力量训练后，每个动作的最佳成绩会自动统计在这里</p>
+            <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-3)' }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>🏆</div>
+              <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 8, color: 'var(--text-1)' }}>还没有个人记录</div>
+              <div style={{ fontSize: 14 }}>完成力量训练后，最佳成绩会自动统计在这里</div>
             </div>
           ) : (
-            <div className="pr-list">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {prs.map((pr, idx) => (
-                <div key={pr.exercise} className="pr-card">
-                  <div className="pr-rank">{['🥇', '🥈', '🥉'][idx] || `#${idx + 1}`}</div>
-                  <div className="pr-info">
-                    <div className="pr-exercise">{pr.exercise}</div>
-                    <div className="pr-date">
+                <div key={pr.exercise} style={{
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--r-l)',
+                  padding: '14px 18px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 14,
+                  boxShadow: 'var(--shadow-s)',
+                }}>
+                  <span style={{ fontSize: 22, width: 36, textAlign: 'center', flexShrink: 0 }}>
+                    {['🥇','🥈','🥉'][idx] || `#${idx + 1}`}
+                  </span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>{pr.exercise}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 500 }}>
                       {new Date(pr.date).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })}
                     </div>
                   </div>
-                  <div className="pr-stats">
-                    <div className="pr-weight">{pr.weight === 0 ? '自重' : `${pr.weight} kg`}</div>
-                    <div className="pr-reps">× {pr.reps} 次</div>
+                  <div style={{ textAlign: 'right', marginRight: 10 }}>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--c-blue)', letterSpacing: '-0.02em' }}>
+                      {pr.weight === 0 ? '自重' : `${pr.weight} kg`}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 1 }}>× {pr.reps} 次</div>
                   </div>
-                  <button className="secondary" style={{ fontSize: 13, padding: '6px 12px' }}
-                    onClick={() => setProgressExercise(pr.exercise)}>
-                    进步曲线
-                  </button>
+                  <button
+                    className="secondary"
+                    style={{ fontSize: 12, padding: '7px 12px', borderRadius: 99, flexShrink: 0 }}
+                    onClick={() => setProgressExercise(pr.exercise)}
+                  >趋势</button>
                 </div>
               ))}
             </div>
@@ -911,11 +1009,11 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* ══════════ 训练模板 Tab ══════════ */}
+      {/* ══════════ 模板 Tab ══════════ */}
       {activeTab === 'templates' && (
-        <div>
+        <div style={{ maxWidth: 'var(--max-w)', margin: '0 auto', padding: '0 20px 80px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <h2 style={{ margin: 0, fontSize: '18px' }}>我的训练计划</h2>
+            <span style={{ fontSize: 15, fontWeight: 700 }}>我的训练模板</span>
           </div>
           <TemplateManager
             templates={templates}
@@ -928,44 +1026,47 @@ const Dashboard = () => {
 
       {/* ══════════ 体重 Tab ══════════ */}
       {activeTab === 'body' && (
-        <div>
+        <div style={{ maxWidth: 'var(--max-w)', margin: '0 auto', padding: '0 20px 80px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <h2 style={{ margin: 0 }}>体重趋势</h2>
-            <button onClick={() => setShowBWModal(true)} style={{ padding: '8px 18px', fontSize: 14 }}>记录体重</button>
+            <span style={{ fontSize: 15, fontWeight: 700 }}>体重趋势</span>
+            <button onClick={() => setShowBWModal(true)} style={{ padding: '8px 18px', fontSize: 14 }}>+ 记录</button>
           </div>
+
           {bwChartData.length < 2 ? (
-            <div className="empty-state">
-              <div className="empty-icon">⚖️</div>
-              <h3>开始追踪体重变化</h3>
-              <p>每天记录一次，30天后你将看到清晰的身体变化趋势</p>
-              <button style={{ marginTop: 20 }} onClick={() => setShowBWModal(true)}>记录今日体重</button>
+            <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-3)' }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>⚖️</div>
+              <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 8, color: 'var(--text-1)' }}>开始追踪体重</div>
+              <div style={{ fontSize: 14, marginBottom: 24 }}>每天记录，30天后看到清晰的变化趋势</div>
+              <button onClick={() => setShowBWModal(true)} style={{ padding: '12px 28px' }}>记录今日体重</button>
             </div>
           ) : (
-            <div className="chart-container">
-              <h3>近30天体重</h3>
-              <ResponsiveContainer width="100%" height={240}>
+            <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-xl)', padding: '20px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-s)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>近30天</span>
+                {latestBW && <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--c-green)', letterSpacing: '-0.02em' }}>{latestBW} kg</span>}
+              </div>
+              <ResponsiveContainer width="100%" height={220}>
                 <AreaChart data={bwChartData}>
                   <defs>
                     <linearGradient id="bwG" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#34c759" stopOpacity={0.15} />
-                      <stop offset="95%" stopColor="#34c759" stopOpacity={0} />
+                      <stop offset="5%" stopColor="var(--c-green)" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="var(--c-green)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
-                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'var(--apple-text-secondary)', fontSize: 12 }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--apple-text-secondary)', fontSize: 12 }}
-                    unit="kg" domain={['auto', 'auto']} />
-                  <Tooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 24px rgba(0,0,0,0.1)' }}
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-3)', fontSize: 11 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-3)', fontSize: 11 }} unit="kg" domain={['auto', 'auto']} />
+                  <Tooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-l)', fontSize: 13 }}
                     formatter={v => [`${v} kg`, '体重']} />
-                  <Area type="monotone" dataKey="weight" stroke="#34c759" strokeWidth={2.5}
-                    fill="url(#bwG)" dot={{ r: 4, fill: '#34c759' }} activeDot={{ r: 6 }} />
+                  <Area type="monotone" dataKey="weight" stroke="var(--c-green)" strokeWidth={2.5} fill="url(#bwG)" dot={{ r: 3, fill: 'var(--c-green)' }} activeDot={{ r: 5 }} />
                 </AreaChart>
               </ResponsiveContainer>
-              <div className="bw-log">
-                {[...bodyWeightLog].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 10).map((e, i) => (
-                  <div key={i} className="bw-item">
-                    <span>{new Date(e.date).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })}</span>
-                    <span className="bw-value">{e.weight} kg</span>
+
+              <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+                {[...bodyWeightLog].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 8).map((e, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: i < 7 ? '1px solid var(--border)' : 'none', fontSize: 14 }}>
+                    <span style={{ color: 'var(--text-2)' }}>{new Date(e.date).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })}</span>
+                    <span style={{ fontWeight: 700, color: 'var(--c-green)' }}>{e.weight} kg</span>
                   </div>
                 ))}
               </div>
@@ -974,7 +1075,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* ── 模态框 ── */}
+      {/* ── Modals ── */}
       {progressExercise && (
         <ProgressModal exercise={progressExercise} onClose={() => setProgressExercise(null)} token={token} />
       )}
@@ -982,11 +1083,7 @@ const Dashboard = () => {
         <BodyWeightModal onClose={() => setShowBWModal(false)} onSave={handleSaveBW} />
       )}
       {showProfile && (
-        <ProfileModal
-          onClose={() => setShowProfile(false)}
-          onSave={handleSaveProfile}
-          currentProfile={userProfile}
-        />
+        <ProfileModal onClose={() => setShowProfile(false)} onSave={handleSaveProfile} currentProfile={userProfile} />
       )}
     </div>
   );

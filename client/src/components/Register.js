@@ -19,16 +19,10 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (password.length < 6) {
-      setMsg({ type: 'error', text: '密码至少需要6位' });
-      return;
-    }
+    if (password.length < 6) { setMsg({ type: 'error', text: '密码至少需要6位' }); return; }
     setMsg({ type: '', text: '' });
     setLoading(true);
-
-    // 前端哈希，避免明文传输
     const hashedPassword = CryptoJS.SHA256(password).toString();
-
     try {
       const res = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
@@ -37,76 +31,79 @@ const Register = () => {
       });
       const data = await res.json();
       if (res.ok) {
-        setMsg({ type: 'success', text: '注册成功，正在跳转...' });
+        setMsg({ type: 'success', text: '注册成功，正在跳转…' });
         setTimeout(() => navigate('/login'), 1200);
       } else {
-        setMsg({ type: 'error', text: data.msg === 'User already exists' ? '该用户名已被使用' : data.msg });
+        setMsg({ type: 'error', text: data.msg === 'User already exists' ? '该用户名已被使用' : (data.msg || '注册失败') });
       }
-    } catch {
-      setMsg({ type: 'error', text: '网络错误，请稍后再试' });
-    } finally {
-      setLoading(false);
-    }
+    } catch { setMsg({ type: 'error', text: '网络错误，请稍后再试' }); }
+    finally { setLoading(false); }
   };
 
   return (
-    <div className="auth-page register-page">
-      {/* 左侧：产品价值主张 */}
-      <div className="auth-value-prop">
-        <div className="auth-logo">💪</div>
-        <h1 className="auth-title">FitTrack</h1>
-        <p className="auth-tagline">专为认真训练的人打造</p>
-        <ul className="feature-list">
+    <div style={{
+      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'var(--bg)', padding: '24px 20px', gap: 60,
+    }}>
+      {/* 左侧品牌 */}
+      <div style={{ textAlign: 'left', maxWidth: 320, display: 'none' }} className="auth-brand-block">
+        <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: '0.2em', color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 16 }}>IRON</div>
+        <h1 style={{ fontSize: 40, fontWeight: 800, letterSpacing: '-0.03em', margin: '0 0 12px', color: 'var(--text-1)', lineHeight: 1.1 }}>专为认真<br />训练的人</h1>
+        <p style={{ fontSize: 16, color: 'var(--text-3)', margin: '0 0 32px' }}>简洁、纯粹，不干扰你的注意力</p>
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
           {FEATURES.map((f, i) => (
-            <li key={i} className="feature-item">
-              <span className="feature-icon">{f.icon}</span>
+            <li key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 15, fontWeight: 500, color: 'var(--text-1)' }}>
+              <span style={{ fontSize: 20, width: 36, height: 36, background: 'var(--surface)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-s)', flexShrink: 0 }}>{f.icon}</span>
               <span>{f.text}</span>
             </li>
           ))}
         </ul>
       </div>
 
-      {/* 右侧：注册表单 */}
-      <div className="form-container auth-card">
-        <h2>创建账号</h2>
-        <p style={{ color: 'var(--apple-text-secondary)', fontSize: 14, marginBottom: 24, marginTop: -16 }}>
-          免费使用，无需绑定任何信息
-        </p>
+      {/* 注册表单 */}
+      <div style={{ width: '100%', maxWidth: 400 }}>
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: '0.2em', color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 12 }}>IRON</div>
+          <h1 style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-0.03em', margin: '0 0 8px', color: 'var(--text-1)' }}>创建账号</h1>
+          <p style={{ fontSize: 15, color: 'var(--text-3)', margin: 0 }}>免费使用，无需绑定任何信息</p>
+        </div>
 
-        {msg.text && (
-          <div className={msg.type === 'error' ? 'auth-error' : 'auth-success'}>
-            {msg.text}
-          </div>
-        )}
+        <div style={{
+          background: 'var(--surface)', borderRadius: 'var(--r-xl)',
+          padding: '32px 28px', boxShadow: 'var(--shadow-l)', border: '1px solid var(--border)',
+        }}>
+          {msg.text && (
+            <div style={{
+              background: msg.type === 'error' ? 'var(--c-red-dim)' : 'var(--c-green-dim)',
+              color: msg.type === 'error' ? '#c0392b' : '#1a7a35',
+              border: `1px solid ${msg.type === 'error' ? 'rgba(255,59,48,0.2)' : 'rgba(52,199,89,0.25)'}`,
+              borderRadius: 'var(--r-s)', padding: '10px 14px', fontSize: 14, fontWeight: 500, marginBottom: 20,
+            }}>{msg.text}</div>
+          )}
 
-        <form onSubmit={handleSubmit}>
-          <label>用户名</label>
-          <input
-            type="text"
-            placeholder="设置你的用户名"
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-            required
-            autoFocus
-            autoComplete="username"
-          />
-          <label>密码</label>
-          <input
-            type="password"
-            placeholder="至少6位"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            required
-            autoComplete="new-password"
-          />
-          <button type="submit" disabled={loading} style={{ marginTop: 8 }}>
-            {loading ? '注册中...' : '免费注册'}
-          </button>
-        </form>
+          <form onSubmit={handleSubmit}>
+            <label>用户名</label>
+            <input
+              type="text" placeholder="设置你的用户名"
+              value={username} onChange={e => setUsername(e.target.value)}
+              required autoFocus autoComplete="username"
+            />
+            <label>密码</label>
+            <input
+              type="password" placeholder="至少6位"
+              value={password} onChange={e => setPassword(e.target.value)}
+              required autoComplete="new-password"
+              style={{ marginBottom: 24 }}
+            />
+            <button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', fontSize: 16, fontWeight: 700, borderRadius: 'var(--r-l)', opacity: loading ? 0.6 : 1 }}>
+              {loading ? '注册中…' : '免费注册'}
+            </button>
+          </form>
 
-        <p style={{ marginTop: 24, fontSize: 14, color: 'var(--apple-text-secondary)' }}>
-          已有账号？<Link to="/login">直接登录</Link>
-        </p>
+          <p style={{ textAlign: 'center', marginTop: 20, fontSize: 14, color: 'var(--text-3)' }}>
+            已有账号？<Link to="/login" style={{ color: 'var(--c-blue)', fontWeight: 600 }}>直接登录</Link>
+          </p>
+        </div>
       </div>
     </div>
   );
