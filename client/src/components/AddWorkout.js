@@ -985,33 +985,35 @@ const AddWorkout = () => {
 
       {/* 能量状态 */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 8,
+        display: 'flex', alignItems: 'center', gap: 6,
         background: 'var(--surface)', border: '1px solid var(--border)',
-        borderRadius: 'var(--r-l)', padding: '10px 14px', marginBottom: 16,
+        borderRadius: 'var(--r-m)', padding: '7px 12px', marginBottom: 14,
       }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-4)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', flexShrink: 0 }}>状态</span>
-        <div style={{ display: 'flex', gap: 4, flex: 1, justifyContent: 'center' }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-4)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', flexShrink: 0 }}>状态</span>
+        <div style={{ display: 'flex', gap: 3, flex: 1, justifyContent: 'center' }}>
           {[1,2,3,4,5].map(lv => (
             <button
               key={lv}
               type="button"
               onClick={() => setEnergyLevel(lv)}
               style={{
-                width: 32, height: 32,
-                borderRadius: 8,
+                width: 22, height: 22,
+                borderRadius: 5,
                 border: 'none', cursor: 'pointer',
-                fontSize: 13, fontWeight: 800,
+                fontSize: 11, fontWeight: 800,
+                lineHeight: 1,
                 transition: 'all 0.15s',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: energyLevel >= lv ? 'var(--c-blue)' : 'var(--surface-3)',
                 color: energyLevel >= lv ? '#fff' : 'var(--text-4)',
-                transform: energyLevel === lv ? 'scale(1.08)' : 'scale(1)',
+                transform: energyLevel === lv ? 'scale(1.12)' : 'scale(1)',
                 flexShrink: 0,
+                padding: 0,
               }}
             >{lv}</button>
           ))}
         </div>
-        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-blue)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--c-blue)', whiteSpace: 'nowrap', flexShrink: 0 }}>
           {energyLevel <= 2 ? '偏疲' : energyLevel === 3 ? '一般' : '状态好'}
         </span>
       </div>
