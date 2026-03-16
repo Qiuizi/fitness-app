@@ -465,7 +465,7 @@ const Dashboard = () => {
       const res = await fetch(`${API_URL}/api/workouts/templates/${id}`, {
         method: 'DELETE', headers: { 'x-auth-token': token },
       });
-      if (res.ok) setTemplates(await res.json());
+      if (res.ok) fetchAll();
     } catch (e) { console.error(e); }
   };
 
@@ -496,9 +496,7 @@ const Dashboard = () => {
         method: 'DELETE', headers: { 'x-auth-token': token },
       });
       if (res.ok) {
-        const result = await res.json();
-        if (result.deleted) setWorkouts(w => w.filter(x => x._id !== workoutId));
-        else setWorkouts(w => w.map(x => x._id === workoutId ? result : x));
+        fetchAll();
       }
     } catch (e) { console.error(e); }
   };
@@ -510,7 +508,7 @@ const Dashboard = () => {
         headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
         body: JSON.stringify({ date, weight }),
       });
-      if (res.ok) { setBodyWeightLog(await res.json()); setShowBWModal(false); }
+      if (res.ok) { fetchAll(); setShowBWModal(false); }
     } catch (e) { console.error(e); }
   };
 
