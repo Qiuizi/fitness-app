@@ -132,52 +132,6 @@ const InsightCard = ({ insights }) => {
     </div>
   );
 };
-const TodayCard = ({ todayPlan, templates, onStartTemplate }) => {
-  const todayDow = new Date().getDay();
-  const plan = todayPlan?.find(p => p.dayOfWeek === todayDow);
-  const template = plan && !plan.isRestDay
-    ? templates.find(t => t._id === plan.templateId)
-    : null;
-
-  if (!plan) return null;
-
-  return (
-    <div className={`today-card ${plan.isRestDay ? 'rest-day' : ''}`}>
-      <div className="today-label">今天 · {WEEKDAYS[todayDow]}</div>
-      {plan.isRestDay ? (
-        <div className="today-content">
-          <span className="today-rest-icon">😴</span>
-          <div>
-            <div className="today-title">休息日</div>
-            <div className="today-sub">适当休息，肌肉在恢复中生长</div>
-          </div>
-        </div>
-      ) : template ? (
-        <div className="today-content">
-          <span className="today-rest-icon">🎯</span>
-          <div style={{ flex: 1 }}>
-            <div className="today-title">{template.name}</div>
-            <div className="today-sub">{template.exercises.map(e => e.exercise).join(' · ')}</div>
-          </div>
-          <button className="today-start-btn" onClick={() => onStartTemplate(template)}>
-            开始训练
-          </button>
-        </div>
-      ) : (
-        <div className="today-content">
-          <span className="today-rest-icon">📋</span>
-          <div>
-            <div className="today-title">{plan.label || '训练日'}</div>
-            <div className="today-sub">点击记录今天的训练</div>
-          </div>
-          <Link to="/add">
-            <button className="today-start-btn">记录训练</button>
-          </Link>
-        </div>
-      )}
-    </div>
-  );
-};
 
 const StreakWidget = ({ streak, longestStreak, shield, onUseShield }) => {
   const isStrong = streak >= 7;
@@ -652,11 +606,148 @@ const Dashboard = () => {
       {/* ── Nav ── */}
       <nav className="nav">
         <span className="nav-brand">💪 健身日记</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Link to="/add"><button style={{ padding: '7px 16px', fontSize: 14 }}>+ 记录</button></Link>
-          <button className="secondary" onClick={() => setShowProfile(true)} style={{ padding: '7px 14px', fontSize: 14 }}>设置</button>
-          <button className="secondary" onClick={logout} style={{ padding: '7px 14px', fontSize: 14 }}>退出</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Link to="/add"><button className="nav-btn-primary">+ 记录</button></Link>
+          <button className="nav-btn-icon" onClick={() => setShowProfile(true)} title="设置">⚙️</button>
+          <button className="nav-btn-icon" onClick={logout} title="退出">🚪</button>
         </div>
+      </nav>
+      
+      {/* ── Hero ── */}
+      <div className="hero-section">
+        <div className="hero-header">
+          <h1 className="hero-greeting">
+            {(() => {
+              const h = new Date().getHours();
+              if (h < 11) return '早上好';
+              if (h < 13) return '中午好';
+              if (h < 18) return '下午好';
+              return '晚上好';
+            })()}，{user?.username || '朋友'}
+          </h1>
+          <p className="hero-date">
+            {new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}
+          </p>
+        </div>
+
+        {/* ── Bento Grid 核心布局 ── */}
+        <div className="bento-grid">
+          
+          {/* 左侧：日历大卡片 */}
+          <div className="bento-item calendar-card">
+            <div className="card-header">
+              <h3>{new Date().getMonth() + 1}月打卡</h3>
+              <div className={`status-pill ${insight.type}`}>{insight.text}</div>
+            </div>
+            <div className="calendar-weekdays">
+              {['日', '一', '二', '三', '四', '五', '六'].map(d => <div key={d}>{d}</div>)}
+            </div>
+            <div className="calendar-grid">
+              {calendarDays.map((day, i) => (
+                <div key={i} className={`calendar-cell ${day ? '' : 'empty'} ${day?.active ? 'active' : ''} ${day?.isToday ? 'today' : ''}`}>
+                  {day && day.dayNum}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 右侧：今日计划 & 数据 */}
+          <div className="bento-col">
+            
+            {/* 1. 今日训练卡片 */}
+            <div className="bento-item today-card-new">
+              <div className="card-header">
+                <h3>今日计划</h3>
+                <span className="today-badge">Today</span>
+              </div>
+              {(() => {
+                const todayDow = new Date().getDay();
+                const plan = todayPlan?.find(p => p.dayOfWeek === todayDow);
+                const template = plan?.templateId ? templates.find(t => t._id === plan.templateId) : null;
+
+                if (!plan) return <div className="today-placeholder">今天没有安排计划</div>;
+                if (plan.isRestDay) return (
+                  <div className="today-content-row">
+                    <div className="today-icon rest">💤</div>
+                    <div>
+                      <div className="today-main-text">休息日</div>
+                      <div className="today-sub-text">肌肉在休息中生长</div>
+                    </div>
+                  </div>
+                );
+                if (template) return (
+                  <div className="today-content-row">
+                    <div className="today-icon train">🏋️</div>
+                    <div style={{ flex: 1 }}>
+                      <div className="today-main-text">{template.name}</div>
+                      <div className="today-sub-text">{template.exercises.length} 个动作</div>
+                    </div>
+                    <button className="small-action-btn" onClick={() => handleStartTemplate(template)}>开始</button>
+                  </div>
+                );
+                return (
+                  <div className="today-content-row">
+                    <div className="today-icon plan">📝</div>
+                    <div>
+                      <div className="today-main-text">{plan.label || '自由训练'}</div>
+                      <div className="today-sub-text">去健身房练点什么？</div>
+                    </div>
+                    <Link to="/add"><button className="small-action-btn">记录</button></Link>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* 2. 数据概览小卡片组 */}
+            <div className="bento-row">
+              <div className="bento-item stat-mini-card">
+                <div className="stat-label">总容量</div>
+                <div className="stat-value">{stats ? (stats.totalVolume / 1000).toFixed(1) : '-'}</div>
+                <div className="stat-unit">吨</div>
+              </div>
+              <div className="bento-item stat-mini-card">
+                <div className="stat-label">总消耗</div>
+                <div className="stat-value">{stats?.totalCardioCalories || '-'}</div>
+                <div className="stat-unit">千卡</div>
+              </div>
+            </div>
+
+            {/* 3. 体重趋势预览 */}
+            <div className="bento-item chart-mini-card" onClick={() => setActiveTab('body')}>
+              <div className="card-header-mini">
+                <span>体重趋势</span>
+                <span className="trend-arrow">↗</span>
+              </div>
+              <div style={{ height: 60, marginTop: 10 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={bwChartData}>
+                     <defs>
+                      <linearGradient id="bwMini" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#34c759" stopOpacity={0.2} />
+                        <stop offset="100%" stopColor="#34c759" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <Area type="monotone" dataKey="weight" stroke="#34c759" strokeWidth={2} fill="url(#bwMini)" dot={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* ── Tabs ── */}
+        <div className="content-tabs" style={{ marginTop: 32 }}>
+          {TABS.map(t => (
+            <div key={t.key}
+              className={`content-tab ${activeTab === t.key ? 'active' : ''}`}
+              onClick={() => setActiveTab(t.key)}>
+              {t.label}
+            </div>
+          ))}
+        </div>
+      </div>
+
       </nav>
       
       {/* ── Hero ── */}
