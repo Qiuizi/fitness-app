@@ -7,7 +7,6 @@ import {
   Tooltip, ResponsiveContainer,
 } from 'recharts';
 
-// ─── 成就定义 ──────────────────────────────────────────────────────────────────
 const ACHIEVEMENTS = {
   first_workout: { icon: '🏋️', name: '初次出征',   desc: '完成第一次训练' },
   workout_10:    { icon: '🔟',  name: '十次里程碑', desc: '累计完成10次训练' },
@@ -22,15 +21,12 @@ const ACHIEVEMENTS = {
   volume_100k:   { icon: '🚀',  name: '十万勇士',   desc: '力量总量超100,000kg' },
 };
 
-// ─── 个人动态里程碑组件 ────────────────────────────────────────────────────────
 const PersonalMilestones = ({ prs, stats }) => {
   if (!prs || prs.length === 0 || !stats) return null;
 
-  // 根据用户数据生成个人里程碑
   const generateMilestones = () => {
     const milestones = [];
     
-    // 检查是否有停滞的动作（超过8周没有进步）
     prs.forEach(pr => {
       const lastDate = new Date(pr.date);
       const weeksStagnant = Math.floor((Date.now() - lastDate) / (7 * 24 * 60 * 60 * 1000));
@@ -49,7 +45,6 @@ const PersonalMilestones = ({ prs, stats }) => {
       }
     });
     
-    // 连续训练天数里程碑
     if (stats.streak > 0) {
       const nextStreak = [3, 7, 14, 30, 50, 100].find(s => s > stats.streak);
       if (nextStreak) {
@@ -65,7 +60,6 @@ const PersonalMilestones = ({ prs, stats }) => {
       }
     }
     
-    // 训练量里程碑
     if (stats.totalVolume > 0) {
       const nextVolume = [1000, 5000, 10000, 50000, 100000].find(v => v > stats.totalVolume);
       if (nextVolume) {
@@ -81,7 +75,7 @@ const PersonalMilestones = ({ prs, stats }) => {
       }
     }
     
-    return milestones.slice(0, 3); // 最多显示3个
+    return milestones.slice(0, 3);
   };
 
   const milestones = generateMilestones();
@@ -110,8 +104,6 @@ const PersonalMilestones = ({ prs, stats }) => {
 };
 
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-
-// ─── 小工具组件 ────────────────────────────────────────────────────────────────
 
 const InsightCard = ({ insights }) => {
   if (!insights || insights.length === 0) return null;
@@ -147,7 +139,6 @@ const StreakWidget = ({ streak, longestStreak, shield, onUseShield }) => {
         <div className="streak-fire">{streak === 0 ? '💤' : isStrong ? '🔥' : '✨'}</div>
       </div>
 
-      {/* 进度条：当前vs历史最长 */}
       <div className="streak-bar-wrap">
         <div className="streak-bar-track">
           <div className="streak-bar-fill" style={{ width: `${pct}%` }} />
@@ -158,7 +149,6 @@ const StreakWidget = ({ streak, longestStreak, shield, onUseShield }) => {
         </div>
       </div>
 
-      {/* 下一个里程碑 */}
       <div className="streak-milestone">
         {streak === 0
           ? '今天训练，开启连续打卡'
@@ -171,7 +161,6 @@ const StreakWidget = ({ streak, longestStreak, shield, onUseShield }) => {
           : '连续打卡30天，你是真正的自律者'}
       </div>
 
-      {/* 免死金牌 */}
       {shield > 0 && streak === 0 && (
         <button className="shield-btn" onClick={onUseShield}>
           🛡️ 使用免死金牌（本月剩余 {shield} 次）
@@ -306,7 +295,6 @@ const ProgressModal = ({ exercise, onClose, token }) => {
   );
 };
 
-// ─── 用户资料完善 Modal ───────────────────────────────────────────────────────
 const ProfileModal = ({ onClose, onSave, currentProfile }) => {
   const [form, setForm] = useState({
     heightCm:        currentProfile?.heightCm || '',
@@ -382,7 +370,6 @@ const ProfileModal = ({ onClose, onSave, currentProfile }) => {
   );
 };
 
-// ─── 主 Dashboard ──────────────────────────────────────────────────────────────
 const Dashboard = () => {
   const { token, user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -429,7 +416,6 @@ const Dashboard = () => {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // 保存用户资料
   const handleSaveProfile = async (form) => {
     try {
       const res = await fetch(`${API_URL}/api/workouts/profile`, {
@@ -448,7 +434,6 @@ const Dashboard = () => {
     } catch (e) { console.error(e); }
   };
 
-  // 使用免死金牌
   const handleUseShield = async () => {
     try {
       const res = await fetch(`${API_URL}/api/workouts/streak-shield`, {
@@ -458,7 +443,6 @@ const Dashboard = () => {
     } catch (e) { console.error(e); }
   };
 
-  // 删除模板
   const handleDeleteTemplate = async (id) => {
     if (!window.confirm('确认删除这个模板？')) return;
     try {
@@ -469,7 +453,6 @@ const Dashboard = () => {
     } catch (e) { console.error(e); }
   };
 
-  // 使用模板开始训练 → 跳转到 AddWorkout 并携带模板数据
   const handleStartTemplate = async (template) => {
     try {
       await fetch(`${API_URL}/api/workouts/templates/${template._id}/use`, {
@@ -479,7 +462,6 @@ const Dashboard = () => {
     navigate('/add', { state: { template } });
   };
 
-  // 删除整条训练
   const handleDelete = async (id) => {
     if (!window.confirm('确认删除这条训练记录？')) return;
     try {
@@ -489,7 +471,6 @@ const Dashboard = () => {
     } catch (e) { console.error(e); }
   };
 
-  // 删除单组
   const handleDeleteSet = async (workoutId, setIndex) => {
     try {
       const res = await fetch(`${API_URL}/api/workouts/${workoutId}/set/${setIndex}`, {
@@ -512,7 +493,6 @@ const Dashboard = () => {
     } catch (e) { console.error(e); }
   };
 
-  // ── 数据处理 ──
   const groupedWorkouts = workouts.reduce((acc, w) => {
     const rawDate = new Date(w.date);
     const key = rawDate.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' });
@@ -532,32 +512,32 @@ const Dashboard = () => {
     vol: groupedWorkouts[k].totalVol,
   })).filter(d => d.vol > 0);
 
-  // V6.0 Calendar logic - 标准月历视图
   const today = new Date();
   const currentYear = today.getFullYear();
-  const currentMonth = today.getMonth(); // 0-11
+  const currentMonth = today.getMonth();
   
-  // 获取当月有多少天
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-  // 获取当月第一天是周几 (0-6)
   const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
   
-  const activeDaysSet = new Set(workouts.map(w => new Date(w.date).toLocaleDateString('zh-CN')));
+  const formatDate = (dateObj) => {
+    const d = new Date(dateObj);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  const activeDaysSet = new Set(workouts.map(w => formatDate(w.date)));
   
   const generateCalendar = () => {
     const days = [];
-    // 补齐月初空白
     for (let i = 0; i < firstDayOfMonth; i++) {
       days.push(null);
     }
-    // 填充日期
     for (let i = 1; i <= daysInMonth; i++) {
       const d = new Date(currentYear, currentMonth, i);
       const isToday = i === today.getDate();
       days.push({
         date: d,
         dayNum: i,
-        active: activeDaysSet.has(d.toLocaleDateString('zh-CN')),
+        active: activeDaysSet.has(formatDate(d)),
         isToday
       });
     }
@@ -566,9 +546,8 @@ const Dashboard = () => {
   const calendarDays = generateCalendar();
   
   const getInsightMessage = () => {
-    // 计算本周打卡次数
     const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay()); // 周日
+    startOfWeek.setDate(today.getDate() - today.getDay());
     const thisWeekWorkouts = workouts.filter(w => new Date(w.date) >= startOfWeek);
     const count = new Set(thisWeekWorkouts.map(w => new Date(w.date).toLocaleDateString())).size;
 
@@ -601,7 +580,6 @@ const Dashboard = () => {
 
   return (
     <div>
-      {/* ── Nav ── */}
       <nav className="nav">
         <span className="nav-brand">💪 健身日记</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -611,7 +589,6 @@ const Dashboard = () => {
         </div>
       </nav>
       
-      {/* ── Hero ── */}
       <div className="hero-section">
         <div className="hero-header">
           <h1 className="hero-greeting">
@@ -627,8 +604,8 @@ const Dashboard = () => {
             {new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}
           </p>
         </div>
+      </div>
 
-      {/* ── Tabs ── */}
       <div className="content-tabs" style={{ marginTop: 32 }}>
         {TABS.map(t => (
           <div key={t.key}
@@ -639,13 +616,9 @@ const Dashboard = () => {
         ))}
       </div>
 
-      {/* ══════════ 总览 Tab ══════════ */}
       {activeTab === 'overview' && (
         <div className="overview-grid">
-          {/* ── Bento Grid 核心布局 (仅在总览显示) ── */}
           <div className="bento-grid">
-            
-            {/* 左侧：日历大卡片 */}
             <div className="bento-item calendar-card">
               <div className="card-header">
                 <h3>{new Date().getMonth() + 1}月打卡</h3>
@@ -663,10 +636,7 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* 右侧：今日计划 & 数据 */}
             <div className="bento-col">
-              
-              {/* 1. 今日训练卡片 */}
               <div className="bento-item today-card-new">
                 <div className="card-header">
                   <h3>今日计划</h3>
@@ -710,7 +680,6 @@ const Dashboard = () => {
                 })()}
               </div>
 
-              {/* 2. 数据概览小卡片组 */}
               <div className="bento-row">
                 <div className="bento-item stat-mini-card">
                   <div className="stat-label">总容量</div>
@@ -724,7 +693,6 @@ const Dashboard = () => {
                 </div>
               </div>
 
-              {/* 3. 体重趋势预览 */}
               <div className="bento-item chart-mini-card" onClick={() => setActiveTab('body')}>
                 <div className="card-header-mini">
                   <span>体重趋势</span>
@@ -744,11 +712,9 @@ const Dashboard = () => {
                   </ResponsiveContainer>
                 </div>
               </div>
-
             </div>
           </div>
 
-          {/* 成就 (保留在 Bento Grid 下方) */}
           {stats && stats.achievements.length > 0 && (
             <div className="achievements-section" style={{ marginTop: 0 }}>
               <div className="achievements-title">
@@ -772,7 +738,6 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* ══════════ 训练历史 Tab ══════════ */}
       {activeTab === 'history' && (
         <>
           <div className="period-filter" style={{ gap: '12px' }}>
@@ -867,7 +832,6 @@ const Dashboard = () => {
     </>
   )}
 
-      {/* ══════════ 个人记录 Tab ══════════ */}
       {activeTab === 'pr' && (
         <div>
           <h2 style={{ marginBottom: 20 }}>个人最佳记录</h2>
@@ -903,7 +867,6 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* ══════════ 训练模板 Tab ══════════ */}
       {activeTab === 'templates' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -918,7 +881,6 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* ══════════ 体重 Tab ══════════ */}
       {activeTab === 'body' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -966,7 +928,6 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* ── 模态框 ── */}
       {progressExercise && (
         <ProgressModal exercise={progressExercise} onClose={() => setProgressExercise(null)} token={token} />
       )}
