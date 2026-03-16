@@ -256,7 +256,7 @@ const CalBadge = ({ cal, foodEquivalent }) => {
   );
 };
 
-// ─── 训练总结页 ───────────────────────────────────────────────────────────────
+// ─── 训练总结页（分享卡片风格） ───────────────────────────────────────────────
 const WorkoutSummary = ({ records, duration, calories, onDone }) => {
   const totalVol = records
     .filter(r => r.type !== 'cardio')
@@ -265,68 +265,80 @@ const WorkoutSummary = ({ records, duration, calories, onDone }) => {
   const mins = Math.floor(duration / 60);
   const secs = duration % 60;
   const totalCal = calories?.total || 0;
+  const dateStr = new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' });
 
   return (
     <div className="summary-page">
-      <div className="summary-header">
-        <div className="summary-check">✓</div>
-        <h2>训练完成</h2>
-        <p>你今天又进步了一点</p>
-      </div>
+      <div className="share-card" id="share-card">
+        <div className="share-header">
+          <div className="share-date">{dateStr}</div>
+          <div className="share-title">训练完成</div>
+        </div>
 
-      <div className="summary-stats">
-        <div className="summary-stat">
-          <div className="summary-stat-val">{mins}:{String(secs).padStart(2, '0')}</div>
-          <div className="summary-stat-label">训练时长</div>
-        </div>
-        <div className="summary-stat">
-          <div className="summary-stat-val">{records.length}</div>
-          <div className="summary-stat-label">动作数</div>
-        </div>
-        <div className="summary-stat">
-          <div className="summary-stat-val">{totalSets}</div>
-          <div className="summary-stat-label">总组数</div>
-        </div>
-        {totalVol > 0 && (
-          <div className="summary-stat">
-            <div className="summary-stat-val">{(totalVol / 1000).toFixed(1)}</div>
-            <div className="summary-stat-label">吨训练量</div>
+        {/* 核心圆环数据 */}
+        <div className="rings-container">
+          <div className="ring-wrap">
+             <svg viewBox="0 0 100 100" className="stat-ring">
+               <circle cx="50" cy="50" r="45" className="ring-bg" />
+               <circle cx="50" cy="50" r="45" className="ring-progress red" strokeDasharray="283" strokeDashoffset="70" />
+             </svg>
+             <div className="ring-content">
+               <div className="ring-val">{totalCal}</div>
+               <div className="ring-label">千卡</div>
+             </div>
           </div>
-        )}
-        {totalCal > 0 && (
-          <div className="summary-stat" style={{ gridColumn: 'span 2', background: 'rgba(255,149,0,0.07)', border: '1px solid rgba(255,149,0,0.2)' }}>
-            <div className="summary-stat-val" style={{ color: '#ff9500' }}>{totalCal}</div>
-            <div className="summary-stat-label" style={{ color: '#d87000' }}>
-              千卡 {calories?.totalFoodEquivalent ? `(${calories.totalFoodEquivalent})` : ''}
+          <div className="ring-wrap">
+             <svg viewBox="0 0 100 100" className="stat-ring">
+               <circle cx="50" cy="50" r="45" className="ring-bg" />
+               <circle cx="50" cy="50" r="45" className="ring-progress green" strokeDasharray="283" strokeDashoffset="100" />
+             </svg>
+             <div className="ring-content">
+               <div className="ring-val">{mins}</div>
+               <div className="ring-label">分钟</div>
+             </div>
+          </div>
+        </div>
+
+        {/* 详细数据网格 */}
+        <div className="summary-stats-grid">
+          <div className="summary-stat-item">
+            <div className="ss-val">{totalSets}</div>
+            <div className="ss-label">总组数</div>
+          </div>
+          <div className="summary-stat-item">
+            <div className="ss-val">{records.length}</div>
+            <div className="ss-label">动作数</div>
+          </div>
+          {totalVol > 0 && (
+            <div className="summary-stat-item">
+              <div className="ss-val">{(totalVol / 1000).toFixed(1)}</div>
+              <div className="ss-label">容量(吨)</div>
             </div>
-            {calories?.bodyWeight && (
-              <div style={{ fontSize: 10, color: '#999', marginTop: 2 }}>
-                基于体重 {calories.bodyWeight}kg
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+          )}
+        </div>
 
-      <div className="summary-exercises">
-        {records.map((r, i) => (
-          <div key={i} className="summary-exercise-row">
-            <div>
-              <span className="summary-ex-name">{r.exercise}</span>
-              {calories?.results?.[i] && <CalBadge cal={calories.results[i].calories} />}
+        {/* 动作列表简略 */}
+        <div className="summary-list">
+          {records.slice(0, 5).map((r, i) => (
+            <div key={i} className="sl-row">
+              <span className="sl-name">{r.exercise}</span>
+              <span className="sl-detail">{r.sets.length}组</span>
             </div>
-            <span className="summary-ex-detail">
-              {r.type === 'cardio'
-                ? `${r.sets[0]?.weight || 0} 分钟`
-                : `${r.sets.length} 组 · 最高 ${Math.max(...r.sets.map(s => parseFloat(s.weight) || 0))} kg`
-              }
-            </span>
-          </div>
-        ))}
+          ))}
+          {records.length > 5 && <div className="sl-more">...以及其他 {records.length - 5} 个动作</div>}
+        </div>
+        
+        <div className="share-footer">
+          <span className="app-watermark">💪 健身日记</span>
+        </div>
       </div>
 
-      <button onClick={onDone} style={{ width: '100%', fontSize: 17, padding: 16, background: '#34c759' }}>
-        完成，回到主页
+      <p style={{ textAlign: 'center', color: '#86868b', fontSize: 13, marginTop: 16 }}>
+        截图保存或分享你的成就
+      </p>
+
+      <button onClick={onDone} className="done-btn">
+        回到主页
       </button>
     </div>
   );

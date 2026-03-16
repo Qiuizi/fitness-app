@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { API_URL } from '../config';
+import CryptoJS from 'crypto-js';
 
 const FEATURES = [
   { icon: '📈', text: '追踪每次训练的进步曲线' },
@@ -24,11 +25,15 @@ const Register = () => {
     }
     setMsg({ type: '', text: '' });
     setLoading(true);
+
+    // 前端哈希，避免明文传输
+    const hashedPassword = CryptoJS.SHA256(password).toString();
+
     try {
       const res = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password: hashedPassword }),
       });
       const data = await res.json();
       if (res.ok) {

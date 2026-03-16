@@ -2,6 +2,7 @@ import React, { useState, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../App';
 import { API_URL } from '../config';
+import CryptoJS from 'crypto-js';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -15,11 +16,15 @@ const Login = () => {
     e.preventDefault();
     setErrorMsg('');
     setLoading(true);
+
+    // 前端哈希，避免明文传输
+    const hashedPassword = CryptoJS.SHA256(password).toString();
+
     try {
       const res = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password: hashedPassword }),
       });
       const data = await res.json();
       if (res.ok) {

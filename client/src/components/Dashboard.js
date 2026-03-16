@@ -231,10 +231,10 @@ const TemplateManager = ({ templates, onStartTemplate, onDelete, onCreateNew }) 
   if (templates.length === 0) {
     return (
         <div className="empty-state">
-          <h3 style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>NO PROTOCOLS FOUND</h3>
-          <p style={{ color: 'var(--apple-text-secondary)', fontSize: 13, textTransform: 'uppercase' }}>Construct a rigid routine for maximum efficiency.</p>
+          <h3 style={{ }}>暂无训练模板</h3>
+          <p style={{ color: 'var(--apple-text-secondary)', fontSize: 13 }}>创建一个固定的训练计划，提升效率。</p>
           <Link to="/add">
-            <button style={{ marginTop: 16 }}>INITIATE</button>
+            <button style={{ marginTop: 16 }}>开始第一次训练</button>
           </Link>
         </div>
     );
@@ -245,25 +245,25 @@ const TemplateManager = ({ templates, onStartTemplate, onDelete, onCreateNew }) 
         <div key={t._id} className="template-card">
           <div className="template-info">
               <div className="template-name">{t.name}</div>
-              <div className="template-exercises" style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, textTransform: 'uppercase' }}>
+              <div className="template-exercises" style={{ fontSize: 11 }}>
               {t.exercises.map(e => e.exercise).join(' · ')}
             </div>
             {t.lastUsed && (
-                <div className="template-meta" style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: 'var(--apple-text-secondary)', textTransform: 'uppercase' }}>
-                  LAST DEPLOYED: {new Date(t.lastUsed).toLocaleDateString('zh-CN')}
-                  {t.useCount > 1 && ` // RAN ${t.useCount} TIMES`}
+                <div className="template-meta" style={{ fontSize: 10, color: 'var(--apple-text-secondary)' }}>
+                  上次使用: {new Date(t.lastUsed).toLocaleDateString('zh-CN')}
+                  {t.useCount > 1 && ` // 共 ${t.useCount} 次`}
                 </div>
             )}
           </div>
           <div className="template-actions">
-            <button onClick={() => onStartTemplate(t)}>EXECUTE</button>
+            <button onClick={() => onStartTemplate(t)}>开始</button>
             <button className="secondary" style={{ padding: '14px 16px' }}
-              onClick={() => onDelete(t._id)}>DEL</button>
+              onClick={() => onDelete(t._id)}>删</button>
           </div>
         </div>
       ))}
-      <button className="secondary template-new-btn" onClick={onCreateNew} style={{ fontWeight: 800, letterSpacing: '0.05em' }}>
-        + NEW PROTOCOL
+      <button className="secondary template-new-btn" onClick={onCreateNew} style={{ fontWeight: 600 }}>
+        + 新建模板
       </button>
     </div>
   );
@@ -580,20 +580,33 @@ const Dashboard = () => {
     vol: groupedWorkouts[k].totalVol,
   })).filter(d => d.vol > 0);
 
-  // V6.0 Calendar logic
-  const activeDaysSet = new Set(workouts.map(w => new Date(w.date).toLocaleDateString('zh-CN')));
+  // V6.0 Calendar logic - 标准月历视图
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth(); // 0-11
+  
+  // 获取当月有多少天
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  // 获取当月第一天是周几 (0-6)
+  const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
+  
+  const activeDaysSet = new Set(workouts.map(w => new Date(w.date).toLocaleDateString('zh-CN')));
   
   const generateCalendar = () => {
     const days = [];
-    for (let i = 27; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
+    // 补齐月初空白
+    for (let i = 0; i < firstDayOfMonth; i++) {
+      days.push(null);
+    }
+    // 填充日期
+    for (let i = 1; i <= daysInMonth; i++) {
+      const d = new Date(currentYear, currentMonth, i);
+      const isToday = i === today.getDate();
       days.push({
         date: d,
+        dayNum: i,
         active: activeDaysSet.has(d.toLocaleDateString('zh-CN')),
-        isToday: i === 0
+        isToday
       });
     }
     return days;
@@ -601,12 +614,16 @@ const Dashboard = () => {
   const calendarDays = generateCalendar();
   
   const getInsightMessage = () => {
-    const activeDaysThisWeek = calendarDays.slice(-7).filter(d => d.active).length;
-    if (workouts.length === 0) return { type: 'info', text: 'INITIATE FIRST PROTOCOL' };
-    if (activeDaysThisWeek >= 4) return { type: 'fire', text: 'OPTIMAL FREQUENCY' };
-    if (activeDaysThisWeek >= 2) return { type: 'info', text: 'MODERATE FREQUENCY' };
-    if (activeDaysThisWeek === 1) return { type: 'info', text: 'SUBOPTIMAL FREQUENCY' };
-    return { type: 'warning', text: 'SYSTEM DORMANT' };
+    // 计算本周打卡次数
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay()); // 周日
+    const thisWeekWorkouts = workouts.filter(w => new Date(w.date) >= startOfWeek);
+    const count = new Set(thisWeekWorkouts.map(w => new Date(w.date).toLocaleDateString())).size;
+
+    if (workouts.length === 0) return { type: 'info', text: '开启第一次训练' };
+    if (count >= 4) return { type: 'fire', text: '本周状态极佳' };
+    if (count >= 2) return { type: 'info', text: '保持节奏' };
+    return { type: 'warning', text: '该运动了' };
   };
   const insight = getInsightMessage();
 
@@ -623,47 +640,60 @@ const Dashboard = () => {
     : null;
 
   const TABS = [
-    { key: 'overview',  label: 'DASHBOARD' },
-    { key: 'history',   label: 'LOGS' },
-    { key: 'templates', label: 'PROTOCOLS' },
+    { key: 'overview',  label: '总览' },
+    { key: 'history',   label: '历史' },
+    { key: 'templates', label: '模板' },
+    { key: 'pr',        label: '纪录' },
+    { key: 'body',      label: '体重' },
   ];
 
   return (
     <div>
       {/* ── Nav ── */}
       <nav className="nav">
-        <span className="nav-brand">💪 FitTrack</span>
+        <span className="nav-brand">💪 健身日记</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Link to="/add"><button style={{ padding: '7px 16px', fontSize: 14 }}>+ LOG</button></Link>
-          <button className="secondary" onClick={() => setShowProfile(true)} style={{ padding: '7px 14px', fontSize: 14 }}>CFG</button>
-          <button className="secondary" onClick={logout} style={{ padding: '7px 14px', fontSize: 14 }}>QUIT</button>
+          <Link to="/add"><button style={{ padding: '7px 16px', fontSize: 14 }}>+ 记录</button></Link>
+          <button className="secondary" onClick={() => setShowProfile(true)} style={{ padding: '7px 14px', fontSize: 14 }}>设置</button>
+          <button className="secondary" onClick={logout} style={{ padding: '7px 14px', fontSize: 14 }}>退出</button>
         </div>
       </nav>
-
+      
       {/* ── Hero ── */}
       <div className="hero-section">
-        <h1 style={{ marginTop: 36, marginBottom: 6, fontFamily: 'JetBrains Mono, monospace' }}>
-          {user ? `IRON.ID[${user.username}]` : 'IRON.SYS'}
+        <h1 style={{ marginTop: 36, marginBottom: 6, fontFamily: 'var(--apple-font)' }}>
+          {user ? `你好，${user.username}` : '欢迎'}
         </h1>
-        <p style={{ color: 'var(--apple-text-secondary)', fontSize: 13, marginBottom: 28, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          LOCAL FIRST // INDUSTRIAL LOGGING SYSTEM
+        <p style={{ color: 'var(--apple-text-secondary)', fontSize: 13, marginBottom: 28 }}>
+          每一次流汗，都是对身体最好的投资
         </p>
 
       {/* ── 规则智能洞察 & 打卡日历 ── */}
       <div className="calendar-container">
           <div className="calendar-header">
-            <h3>LOG FREQUENCY (28 DAYS)</h3>
+            <h3>{today.getMonth() + 1}月打卡记录</h3>
             <div className={`insight-badge ${insight.type}`}>
                {insight.text}
             </div>
           </div>
-        <div className="calendar-grid">
+          {/* 星期表头 */}
+          <div className="calendar-weekdays">
+            {['日', '一', '二', '三', '四', '五', '六'].map(d => (
+              <div key={d} className="cw-day">{d}</div>
+            ))}
+          </div>
+        <div className="calendar-grid month-view">
           {calendarDays.map((day, i) => (
-            <div 
-              key={i} 
-              className={`calendar-square ${day.active ? 'active' : ''} ${day.isToday ? 'today' : ''}`} 
-              title={day.date.toLocaleDateString('zh-CN')} 
-            />
+            day ? (
+              <div 
+                key={i} 
+                className={`calendar-square ${day.active ? 'active' : ''} ${day.isToday ? 'today' : ''}`} 
+              >
+                <span className="day-num">{day.dayNum}</span>
+              </div>
+            ) : (
+              <div key={i} className="calendar-square empty" />
+            )
           ))}
         </div>
       </div>
@@ -699,15 +729,15 @@ const Dashboard = () => {
           {/* 核心数据卡 */}
           <div className="stats-grid-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px' }}>
             {[
-              { label: 'SESSIONS',  val: stats?.totalWorkouts ?? '—',  unit: 'LOGS',  color: null },
-              { label: 'ACTIVE',  val: stats?.activeDays ?? '—',     unit: 'DAYS',  color: null },
-              { label: 'VOL',  val: stats ? (stats.totalVolume / 1000).toFixed(1) : '—', unit: 'TONS', color: null },
-              { label: 'BURN',  val: stats?.totalCardioCalories ?? '—', unit: 'KCAL', color: null },
+              { label: '总训练次数',  val: stats?.totalWorkouts ?? '—',  unit: '次',  color: null },
+              { label: '活跃天数',  val: stats?.activeDays ?? '—',     unit: '天',  color: null },
+              { label: '总容量',  val: stats ? (stats.totalVolume / 1000).toFixed(1) : '—', unit: '吨', color: null },
+              { label: '卡路里',  val: stats?.totalCardioCalories ?? '—', unit: '千卡', color: null },
             ].map((c, i) => (
               <div key={i} className="stat-card" style={{ padding: '16px', background: 'transparent' }}>
                 <div className="stat-card-2-label" style={{ marginBottom: '8px' }}>{c.label}</div>
-                <div className="stat-card-2-value" style={{ fontFamily: 'JetBrains Mono, monospace' }}>{c.val}</div>
-                <div className="stat-card-2-unit" style={{ fontSize: '10px', textTransform: 'uppercase', marginTop: '4px' }}>{c.unit}</div>
+                <div className="stat-card-2-value" style={{ fontFamily: 'var(--apple-font)' }}>{c.val}</div>
+                <div className="stat-card-2-unit" style={{ fontSize: '10px', marginTop: '4px' }}>{c.unit}</div>
               </div>
             ))}
           </div>
@@ -715,7 +745,7 @@ const Dashboard = () => {
           {/* 力量趋势迷你图 */}
           {chartData.length >= 2 && (
             <div className="mini-chart-card">
-            <div className="mini-chart-title">VOL TREND</div>
+            <div className="mini-chart-title">训练量趋势</div>
             <ResponsiveContainer width="100%" height={120}>
               <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
                 <defs>
@@ -764,10 +794,10 @@ const Dashboard = () => {
       {activeTab === 'history' && (
         <>
           <div className="period-filter" style={{ gap: '12px' }}>
-            {[{ k: 'week', l: '7 DAYS' }, { k: 'month', l: '30 DAYS' }, { k: 'all', l: 'ALL' }].map(p => (
+            {[{ k: 'week', l: '最近7天' }, { k: 'month', l: '最近30天' }, { k: 'all', l: '全部' }].map(p => (
               <button key={p.k}
                 className={period === p.k ? '' : 'secondary'}
-                style={{ padding: '8px 20px', borderRadius: '4px', letterSpacing: '0.05em' }}
+                style={{ padding: '8px 20px', borderRadius: '4px' }}
                 onClick={() => setPeriod(p.k)}>
                 {p.l}
               </button>
@@ -799,22 +829,22 @@ const Dashboard = () => {
 
       {workouts.length === 0 ? (
         <div className="empty-state" style={{ border: '1px dashed var(--apple-border)', background: 'transparent', boxShadow: 'none' }}>
-          <div className="empty-icon">⬛</div>
-          <h3 style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>NO DATA FOUND</h3>
-          <p>Initialize your first protocol.</p>
-          <Link to="/add"><button style={{marginTop: '20px', borderRadius: '4px'}}>INITIATE</button></Link>
+          <div className="empty-icon">📝</div>
+          <h3>暂无记录</h3>
+          <p>从今天开始，记录你的第一次训练。</p>
+          <Link to="/add"><button style={{marginTop: '20px', borderRadius: '4px'}}>开始记录</button></Link>
         </div>
       ) : (
         <div className="daily-groupings">
           {sortedDates.map(dateKey => {
             const day = groupedWorkouts[dateKey];
             return (
-              <div key={dateKey} className="daily-group" style={{ borderLeft: '4px solid var(--apple-text)', paddingLeft: '20px', marginLeft: '10px' }}>
+              <div key={dateKey} className="daily-group" style={{ borderLeft: '4px solid var(--apple-blue)', paddingLeft: '20px', marginLeft: '10px' }}>
                 <div className="daily-header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
-                  <h3 style={{ textTransform: 'uppercase', letterSpacing: '0.02em', fontSize: '20px' }}>{dateKey}</h3>
+                  <h3 style={{ fontSize: '20px' }}>{dateKey}</h3>
                   <div style={{ display: 'flex', gap: 12 }}>
-                    {day.totalVol > 0 && <span className="daily-meta" style={{ fontFamily: 'monospace', color: 'var(--apple-text)' }}>VOL: {day.totalVol.toLocaleString()} KG</span>}
-                    {day.totalCals > 0 && <span className="daily-meta" style={{ fontFamily: 'monospace', color: '#ff9500' }}>BURN: {day.totalCals} KCAL</span>}
+                    {day.totalVol > 0 && <span className="daily-meta" style={{ fontFamily: 'var(--apple-font)', color: 'var(--apple-text)' }}>容量: {day.totalVol.toLocaleString()} KG</span>}
+                    {day.totalCals > 0 && <span className="daily-meta" style={{ fontFamily: 'var(--apple-font)', color: '#ff9500' }}>消耗: {day.totalCals} KCAL</span>}
                   </div>
                 </div>
                 {day.items.map(w => (
@@ -895,7 +925,7 @@ const Dashboard = () => {
       {activeTab === 'templates' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <h2 style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '16px' }}>DEPLOYED PROTOCOLS</h2>
+            <h2 style={{ margin: 0, fontSize: '18px' }}>我的训练计划</h2>
           </div>
           <TemplateManager
             templates={templates}
