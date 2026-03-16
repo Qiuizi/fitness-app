@@ -814,7 +814,7 @@ const AddWorkout = () => {
   if (phase === 'between') {
     const lastEx = completedExercises[completedExercises.length - 1];
     return (
-      <div style={{ maxWidth: 'var(--content-w)', margin: '0 auto', padding: '40px 20px' }}>
+      <div style={{ maxWidth: 'var(--content-w)', margin: '0 auto', padding: '40px 16px calc(60px + env(safe-area-inset-bottom))' }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{ width: 72, height: 72, background: 'var(--c-green)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, color: '#fff', margin: '0 auto 16px', boxShadow: '0 8px 24px rgba(52,199,89,0.3)', animation: 'popIn 0.4s cubic-bezier(0.34,1.56,0.64,1)' }}>✓</div>
           <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 6, letterSpacing: '-0.02em' }}>{lastEx?.exercise}</div>
@@ -852,7 +852,7 @@ const AddWorkout = () => {
   // ══ 选择动作 ══
   if (phase === 'select') {
     return (
-      <div style={{ maxWidth: 'var(--content-w)', margin: '0 auto', padding: '20px 20px 60px' }}>
+      <div style={{ maxWidth: 'var(--content-w)', margin: '0 auto', padding: '16px 16px calc(80px + env(safe-area-inset-bottom))' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <span style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em' }}>
             {completedExercises.length > 0 ? `第 ${completedExercises.length + 1} 个动作` : '选择动作'}
@@ -956,7 +956,7 @@ const AddWorkout = () => {
 
   // ══ 记录组数（Gym Mode） ══
   return (
-    <div style={{ maxWidth: 'var(--content-w)', margin: '0 auto', padding: '0 20px 120px' }}>
+    <div style={{ maxWidth: 'var(--content-w)', margin: '0 auto', padding: '0 16px calc(120px + env(safe-area-inset-bottom))' }}>
       {/* 顶部工具栏 */}
       <div className="gym-header">
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 16, fontWeight: 700, color: 'var(--text-3)', letterSpacing: '0.02em' }}>
