@@ -349,3 +349,6 @@ input, select { margin-bottom: 16px; } /* Reset */
 
 /* Calendar Fix */
 .calendar-square.empty { visibility: hidden; }
+
+/* Layout Fix */
+.overview-grid { max-width: var(--max-width); margin: 0 auto; padding: 0 20px 40px; }
