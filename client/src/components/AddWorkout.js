@@ -959,17 +959,17 @@ const AddWorkout = () => {
     <div style={{ maxWidth: 'var(--content-w)', margin: '0 auto', padding: '0 16px calc(120px + env(safe-area-inset-bottom))' }}>
       {/* 顶部工具栏 */}
       <div className="gym-header">
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 16, fontWeight: 700, color: 'var(--text-3)', letterSpacing: '0.02em' }}>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 15, fontWeight: 700, color: 'var(--text-3)', letterSpacing: '0.02em', flexShrink: 0 }}>
           {fmt(elapsed)}
         </div>
 
         {/* 模板进度点 */}
         {(completedExercises.length > 0 || templateQueue.length > 0) && (
-          <div style={{ display: 'flex', gap: 5, flex: 1, justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: 4, flex: 1, justifyContent: 'center', overflow: 'hidden', padding: '0 8px' }}>
             {Array.from({ length: totalExercises }).map((_, i) => (
               <div key={i} style={{
-                height: 4, borderRadius: 99, transition: 'all 0.3s',
-                width: i === currentIdx ? 20 : 8,
+                height: 4, borderRadius: 99, transition: 'all 0.3s', flexShrink: 0,
+                width: i === currentIdx ? 18 : 6,
                 background: i < currentIdx ? 'var(--c-green)' : i === currentIdx ? 'var(--c-blue)' : 'var(--border)',
               }} />
             ))}
@@ -979,35 +979,40 @@ const AddWorkout = () => {
         <button
           className="secondary"
           onClick={() => completedExercises.length > 0 ? setPhase('between') : navigate('/')}
-          style={{ padding: '6px 14px', fontSize: 13, borderRadius: 99, flexShrink: 0 }}
+          style={{ padding: '6px 12px', fontSize: 12, borderRadius: 99, flexShrink: 0 }}
         >{completedExercises.length > 0 ? '结束' : '退出'}</button>
       </div>
 
       {/* 能量状态 */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 12,
+        display: 'flex', alignItems: 'center', gap: 8,
         background: 'var(--surface)', border: '1px solid var(--border)',
-        borderRadius: 'var(--r-l)', padding: '11px 16px', marginBottom: 16,
+        borderRadius: 'var(--r-l)', padding: '10px 14px', marginBottom: 16,
       }}>
-        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-4)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>今天状态</span>
-        <div style={{ display: 'flex', gap: 5 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-4)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', flexShrink: 0 }}>状态</span>
+        <div style={{ display: 'flex', gap: 4, flex: 1, justifyContent: 'center' }}>
           {[1,2,3,4,5].map(lv => (
             <button
               key={lv}
               type="button"
               onClick={() => setEnergyLevel(lv)}
               style={{
-                width: 28, height: 28, borderRadius: '50%', border: 'none', cursor: 'pointer',
-                fontSize: 13, transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 32, height: 32,
+                borderRadius: 8,
+                border: 'none', cursor: 'pointer',
+                fontSize: 13, fontWeight: 800,
+                transition: 'all 0.15s',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: energyLevel >= lv ? 'var(--c-blue)' : 'var(--surface-3)',
                 color: energyLevel >= lv ? '#fff' : 'var(--text-4)',
-                transform: energyLevel === lv ? 'scale(1.15)' : 'scale(1)',
+                transform: energyLevel === lv ? 'scale(1.08)' : 'scale(1)',
+                flexShrink: 0,
               }}
-            >●</button>
+            >{lv}</button>
           ))}
         </div>
-        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-blue)', marginLeft: 'auto' }}>
-          {energyLevel <= 2 ? '疲惫' : energyLevel === 3 ? '一般' : '充沛'}
+        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-blue)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+          {energyLevel <= 2 ? '偏疲' : energyLevel === 3 ? '一般' : '状态好'}
         </span>
       </div>
 

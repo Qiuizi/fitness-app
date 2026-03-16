@@ -670,30 +670,32 @@
 .energy-selector {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-l);
-  padding: 11px 16px;
+  padding: 10px 14px;
   margin-bottom: 16px;
 }
-.energy-label { font-size: 12px; font-weight: 700; color: var(--text-4); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
-.energy-dots { display: flex; gap: 5px; }
+.energy-label { font-size: 11px; font-weight: 700; color: var(--text-4); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; flex-shrink: 0; }
+.energy-dots { display: flex; gap: 4px; flex: 1; justify-content: center; }
 .energy-dot {
-  width: 28px; height: 28px;
-  border-radius: 50%;
+  width: 32px; height: 32px;
+  border-radius: 8px;
   border: none;
   cursor: pointer;
   font-size: 13px;
+  font-weight: 800;
   transition: all 0.15s;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 .energy-dot.filled { background: var(--c-blue); color: white; }
 .energy-dot:not(.filled) { background: var(--surface-3); color: var(--text-4); }
-.energy-dot.active { transform: scale(1.15); }
-.energy-text { font-size: 12px; font-weight: 700; color: var(--c-blue); margin-left: auto; }
+.energy-dot.active { transform: scale(1.08); }
+.energy-text { font-size: 11px; font-weight: 700; color: var(--c-blue); white-space: nowrap; flex-shrink: 0; }
 
 /* Between page */
 .between-page {
