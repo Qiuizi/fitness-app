@@ -7,6 +7,7 @@ import {
   Tooltip, ResponsiveContainer,
 } from 'recharts';
 
+// ─── 成就定义 ──────────────────────────────────────────────────────────────────
 const ACHIEVEMENTS = {
   first_workout: { icon: '🏋️', name: '初次出征',   desc: '完成第一次训练' },
   workout_10:    { icon: '🔟',  name: '十次里程碑', desc: '累计完成10次训练' },
@@ -21,12 +22,15 @@ const ACHIEVEMENTS = {
   volume_100k:   { icon: '🚀',  name: '十万勇士',   desc: '力量总量超100,000kg' },
 };
 
+// ─── 个人动态里程碑组件 ────────────────────────────────────────────────────────
 const PersonalMilestones = ({ prs, stats }) => {
   if (!prs || prs.length === 0 || !stats) return null;
 
+  // 根据用户数据生成个人里程碑
   const generateMilestones = () => {
     const milestones = [];
     
+    // 检查是否有停滞的动作（超过8周没有进步）
     prs.forEach(pr => {
       const lastDate = new Date(pr.date);
       const weeksStagnant = Math.floor((Date.now() - lastDate) / (7 * 24 * 60 * 60 * 1000));
@@ -45,6 +49,7 @@ const PersonalMilestones = ({ prs, stats }) => {
       }
     });
     
+    // 连续训练天数里程碑
     if (stats.streak > 0) {
       const nextStreak = [3, 7, 14, 30, 50, 100].find(s => s > stats.streak);
       if (nextStreak) {
@@ -60,6 +65,7 @@ const PersonalMilestones = ({ prs, stats }) => {
       }
     }
     
+    // 训练量里程碑
     if (stats.totalVolume > 0) {
       const nextVolume = [1000, 5000, 10000, 50000, 100000].find(v => v > stats.totalVolume);
       if (nextVolume) {
@@ -75,7 +81,7 @@ const PersonalMilestones = ({ prs, stats }) => {
       }
     }
     
-    return milestones.slice(0, 3);
+    return milestones.slice(0, 3); // 最多显示3个
   };
 
   const milestones = generateMilestones();
@@ -104,6 +110,8 @@ const PersonalMilestones = ({ prs, stats }) => {
 };
 
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+// ─── 小工具组件 ────────────────────────────────────────────────────────────────
 
 const InsightCard = ({ insights }) => {
   if (!insights || insights.length === 0) return null;
@@ -139,6 +147,7 @@ const StreakWidget = ({ streak, longestStreak, shield, onUseShield }) => {
         <div className="streak-fire">{streak === 0 ? '💤' : isStrong ? '🔥' : '✨'}</div>
       </div>
 
+      {/* 进度条：当前vs历史最长 */}
       <div className="streak-bar-wrap">
         <div className="streak-bar-track">
           <div className="streak-bar-fill" style={{ width: `${pct}%` }} />
@@ -149,6 +158,7 @@ const StreakWidget = ({ streak, longestStreak, shield, onUseShield }) => {
         </div>
       </div>
 
+      {/* 下一个里程碑 */}
       <div className="streak-milestone">
         {streak === 0
           ? '今天训练，开启连续打卡'
@@ -161,6 +171,7 @@ const StreakWidget = ({ streak, longestStreak, shield, onUseShield }) => {
           : '连续打卡30天，你是真正的自律者'}
       </div>
 
+      {/* 免死金牌 */}
       {shield > 0 && streak === 0 && (
         <button className="shield-btn" onClick={onUseShield}>
           🛡️ 使用免死金牌（本月剩余 {shield} 次）
@@ -295,6 +306,7 @@ const ProgressModal = ({ exercise, onClose, token }) => {
   );
 };
 
+// ─── 用户资料完善 Modal ───────────────────────────────────────────────────────
 const ProfileModal = ({ onClose, onSave, currentProfile }) => {
   const [form, setForm] = useState({
     heightCm:        currentProfile?.heightCm || '',
@@ -370,6 +382,7 @@ const ProfileModal = ({ onClose, onSave, currentProfile }) => {
   );
 };
 
+// ─── 主 Dashboard ──────────────────────────────────────────────────────────────
 const Dashboard = () => {
   const { token, user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -416,6 +429,7 @@ const Dashboard = () => {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
+  // 保存用户资料
   const handleSaveProfile = async (form) => {
     try {
       const res = await fetch(`${API_URL}/api/workouts/profile`, {
@@ -434,6 +448,7 @@ const Dashboard = () => {
     } catch (e) { console.error(e); }
   };
 
+  // 使用免死金牌
   const handleUseShield = async () => {
     try {
       const res = await fetch(`${API_URL}/api/workouts/streak-shield`, {
@@ -443,6 +458,7 @@ const Dashboard = () => {
     } catch (e) { console.error(e); }
   };
 
+  // 删除模板
   const handleDeleteTemplate = async (id) => {
     if (!window.confirm('确认删除这个模板？')) return;
     try {
@@ -453,6 +469,7 @@ const Dashboard = () => {
     } catch (e) { console.error(e); }
   };
 
+  // 使用模板开始训练 → 跳转到 AddWorkout 并携带模板数据
   const handleStartTemplate = async (template) => {
     try {
       await fetch(`${API_URL}/api/workouts/templates/${template._id}/use`, {
@@ -462,6 +479,7 @@ const Dashboard = () => {
     navigate('/add', { state: { template } });
   };
 
+  // 删除整条训练
   const handleDelete = async (id) => {
     if (!window.confirm('确认删除这条训练记录？')) return;
     try {
@@ -471,6 +489,7 @@ const Dashboard = () => {
     } catch (e) { console.error(e); }
   };
 
+  // 删除单组
   const handleDeleteSet = async (workoutId, setIndex) => {
     try {
       const res = await fetch(`${API_URL}/api/workouts/${workoutId}/set/${setIndex}`, {
@@ -493,6 +512,7 @@ const Dashboard = () => {
     } catch (e) { console.error(e); }
   };
 
+  // ── 数据处理 ──
   const groupedWorkouts = workouts.reduce((acc, w) => {
     const rawDate = new Date(w.date);
     const key = rawDate.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' });
@@ -512,13 +532,17 @@ const Dashboard = () => {
     vol: groupedWorkouts[k].totalVol,
   })).filter(d => d.vol > 0);
 
+  // V6.0 Calendar logic - 标准月历视图
   const today = new Date();
   const currentYear = today.getFullYear();
-  const currentMonth = today.getMonth();
+  const currentMonth = today.getMonth(); // 0-11
   
+  // 获取当月有多少天
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  // 获取当月第一天是周几 (0-6)
   const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
   
+  // 修正后的安全日期比对格式
   const formatDate = (dateObj) => {
     const d = new Date(dateObj);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -528,9 +552,11 @@ const Dashboard = () => {
   
   const generateCalendar = () => {
     const days = [];
+    // 补齐月初空白
     for (let i = 0; i < firstDayOfMonth; i++) {
       days.push(null);
     }
+    // 填充日期
     for (let i = 1; i <= daysInMonth; i++) {
       const d = new Date(currentYear, currentMonth, i);
       const isToday = i === today.getDate();
@@ -546,8 +572,9 @@ const Dashboard = () => {
   const calendarDays = generateCalendar();
   
   const getInsightMessage = () => {
+    // 计算本周打卡次数
     const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay());
+    startOfWeek.setDate(today.getDate() - today.getDay()); // 周日
     const thisWeekWorkouts = workouts.filter(w => new Date(w.date) >= startOfWeek);
     const count = new Set(thisWeekWorkouts.map(w => new Date(w.date).toLocaleDateString())).size;
 
@@ -580,6 +607,7 @@ const Dashboard = () => {
 
   return (
     <div>
+      {/* ── Nav ── */}
       <nav className="nav">
         <span className="nav-brand">💪 健身日记</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -589,6 +617,8 @@ const Dashboard = () => {
         </div>
       </nav>
       
+      {/* ── Hero ── */}
+      {/* 修复：补充了缺失的 </div> 来正确闭合 hero-section */}
       <div className="hero-section">
         <div className="hero-header">
           <h1 className="hero-greeting">
@@ -606,6 +636,7 @@ const Dashboard = () => {
         </div>
       </div>
 
+      {/* ── Tabs ── */}
       <div className="content-tabs" style={{ marginTop: 32 }}>
         {TABS.map(t => (
           <div key={t.key}
@@ -616,9 +647,13 @@ const Dashboard = () => {
         ))}
       </div>
 
+      {/* ══════════ 总览 Tab ══════════ */}
       {activeTab === 'overview' && (
         <div className="overview-grid">
+          {/* ── Bento Grid 核心布局 (仅在总览显示) ── */}
           <div className="bento-grid">
+            
+            {/* 左侧：日历大卡片 */}
             <div className="bento-item calendar-card">
               <div className="card-header">
                 <h3>{new Date().getMonth() + 1}月打卡</h3>
@@ -636,7 +671,10 @@ const Dashboard = () => {
               </div>
             </div>
 
+            {/* 右侧：今日计划 & 数据 */}
             <div className="bento-col">
+              
+              {/* 1. 今日训练卡片 */}
               <div className="bento-item today-card-new">
                 <div className="card-header">
                   <h3>今日计划</h3>
@@ -680,6 +718,7 @@ const Dashboard = () => {
                 })()}
               </div>
 
+              {/* 2. 数据概览小卡片组 */}
               <div className="bento-row">
                 <div className="bento-item stat-mini-card">
                   <div className="stat-label">总容量</div>
@@ -693,6 +732,7 @@ const Dashboard = () => {
                 </div>
               </div>
 
+              {/* 3. 体重趋势预览 */}
               <div className="bento-item chart-mini-card" onClick={() => setActiveTab('body')}>
                 <div className="card-header-mini">
                   <span>体重趋势</span>
@@ -712,9 +752,11 @@ const Dashboard = () => {
                   </ResponsiveContainer>
                 </div>
               </div>
+
             </div>
           </div>
 
+          {/* 成就 (保留在 Bento Grid 下方) */}
           {stats && stats.achievements.length > 0 && (
             <div className="achievements-section" style={{ marginTop: 0 }}>
               <div className="achievements-title">
@@ -738,6 +780,7 @@ const Dashboard = () => {
         </div>
       )}
 
+      {/* ══════════ 训练历史 Tab ══════════ */}
       {activeTab === 'history' && (
         <>
           <div className="period-filter" style={{ gap: '12px' }}>
@@ -774,64 +817,65 @@ const Dashboard = () => {
             </div>
           )}
 
-      {workouts.length === 0 ? (
-        <div className="empty-state" style={{ border: '1px dashed var(--apple-border)', background: 'transparent', boxShadow: 'none' }}>
-          <div className="empty-icon">📝</div>
-          <h3>暂无记录</h3>
-          <p>从今天开始，记录你的第一次训练。</p>
-          <Link to="/add"><button style={{marginTop: '20px', borderRadius: '4px'}}>开始记录</button></Link>
-        </div>
-      ) : (
-        <div className="daily-groupings">
-          {sortedDates.map(dateKey => {
-            const day = groupedWorkouts[dateKey];
-            return (
-              <div key={dateKey} className="daily-group" style={{ borderLeft: '4px solid var(--apple-blue)', paddingLeft: '20px', marginLeft: '10px' }}>
-                <div className="daily-header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
-                  <h3 style={{ fontSize: '20px' }}>{dateKey}</h3>
-                  <div style={{ display: 'flex', gap: 12 }}>
-                    {day.totalVol > 0 && <span className="daily-meta" style={{ fontFamily: 'var(--apple-font)', color: 'var(--apple-text)' }}>容量: {day.totalVol.toLocaleString()} KG</span>}
-                    {day.totalCals > 0 && <span className="daily-meta" style={{ fontFamily: 'var(--apple-font)', color: '#ff9500' }}>消耗: {day.totalCals} KCAL</span>}
-                  </div>
-                </div>
-                {day.items.map(w => (
-                  <div key={w._id} className={`exercise-card ${w.type === 'cardio' ? 'cardio-card' : ''}`} style={{ borderRadius: '8px', border: '1px solid var(--apple-border)', boxShadow: 'none', marginBottom: '16px' }}>
-                    <div className="exercise-header" style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <h4 style={{ fontSize: '16px', letterSpacing: '0.02em', margin: 0 }}>{w.exercise}</h4>
+          {workouts.length === 0 ? (
+            <div className="empty-state" style={{ border: '1px dashed var(--apple-border)', background: 'transparent', boxShadow: 'none' }}>
+              <div className="empty-icon">📝</div>
+              <h3>暂无记录</h3>
+              <p>从今天开始，记录你的第一次训练。</p>
+              <Link to="/add"><button style={{marginTop: '20px', borderRadius: '4px'}}>开始记录</button></Link>
+            </div>
+          ) : (
+            <div className="daily-groupings">
+              {sortedDates.map(dateKey => {
+                const day = groupedWorkouts[dateKey];
+                return (
+                  <div key={dateKey} className="daily-group" style={{ borderLeft: '4px solid var(--apple-blue)', paddingLeft: '20px', marginLeft: '10px' }}>
+                    <div className="daily-header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+                      <h3 style={{ fontSize: '20px' }}>{dateKey}</h3>
+                      <div style={{ display: 'flex', gap: 12 }}>
+                        {day.totalVol > 0 && <span className="daily-meta" style={{ fontFamily: 'var(--apple-font)', color: 'var(--apple-text)' }}>容量: {day.totalVol.toLocaleString()} KG</span>}
+                        {day.totalCals > 0 && <span className="daily-meta" style={{ fontFamily: 'var(--apple-font)', color: '#ff9500' }}>消耗: {day.totalCals} KCAL</span>}
                       </div>
-                      <button className="delete-btn" style={{ background: 'transparent', color: 'var(--apple-text-secondary)', padding: '4px 8px' }} onClick={() => handleDelete(w._id)}>X</button>
                     </div>
-                    <div className="set-list" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      {w.sets.map((s, i) => (
-                        <div key={i} className="set-item" style={{ display: 'flex', justifyContent: 'space-between', background: 'transparent', borderBottom: '1px dotted rgba(0,0,0,0.1)', borderRadius: 0, padding: '4px 0', fontSize: '14px', fontFamily: 'monospace' }}>
-                          {w.type === 'strength' && <span className="set-item-index" style={{ width: '30px', color: 'var(--apple-text-secondary)' }}>S{String(i + 1).padStart(2, '0')}</span>}
-                          {w.type === 'cardio' ? (
-                            <>
-                              <span>{s.weight} MIN</span>
-                              <span style={{ color: '#ff9500' }}>{s.reps} KCAL</span>
-                            </>
-                          ) : (
-                            <>
-                              <span>{s.weight === 0 ? 'BW' : `${s.weight} KG`}</span>
-                              <span>x {String(s.reps).padStart(2, '0')}</span>
-                            </>
-                          )}
-                          <button className="set-delete-btn" style={{ background: 'transparent', color: 'var(--apple-text-secondary)', padding: '0 8px', border: 'none', cursor: 'pointer' }} onClick={() => handleDeleteSet(w._id, i)}>×</button>
+                    {day.items.map(w => (
+                      <div key={w._id} className={`exercise-card ${w.type === 'cardio' ? 'cardio-card' : ''}`} style={{ borderRadius: '8px', border: '1px solid var(--apple-border)', boxShadow: 'none', marginBottom: '16px' }}>
+                        <div className="exercise-header" style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <h4 style={{ fontSize: '16px', letterSpacing: '0.02em', margin: 0 }}>{w.exercise}</h4>
+                          </div>
+                          <button className="delete-btn" style={{ background: 'transparent', color: 'var(--apple-text-secondary)', padding: '4px 8px' }} onClick={() => handleDelete(w._id)}>X</button>
                         </div>
-                      ))}
-                    </div>
-                    {w.notes && <div className="exercise-notes" style={{marginTop: '12px', fontSize: '13px', color: 'var(--apple-text-secondary)', borderLeft: '2px solid var(--apple-border)', paddingLeft: '8px', background: 'transparent'}}>{w.notes}</div>}
+                        <div className="set-list" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          {w.sets.map((s, i) => (
+                            <div key={i} className="set-item" style={{ display: 'flex', justifyContent: 'space-between', background: 'transparent', borderBottom: '1px dotted rgba(0,0,0,0.1)', borderRadius: 0, padding: '4px 0', fontSize: '14px', fontFamily: 'monospace' }}>
+                              {w.type === 'strength' && <span className="set-item-index" style={{ width: '30px', color: 'var(--apple-text-secondary)' }}>S{String(i + 1).padStart(2, '0')}</span>}
+                              {w.type === 'cardio' ? (
+                                <>
+                                  <span>{s.weight} MIN</span>
+                                  <span style={{ color: '#ff9500' }}>{s.reps} KCAL</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span>{s.weight === 0 ? 'BW' : `${s.weight} KG`}</span>
+                                  <span>x {String(s.reps).padStart(2, '0')}</span>
+                                </>
+                              )}
+                              <button className="set-delete-btn" style={{ background: 'transparent', color: 'var(--apple-text-secondary)', padding: '0 8px', border: 'none', cursor: 'pointer' }} onClick={() => handleDeleteSet(w._id, i)}>×</button>
+                            </div>
+                          ))}
+                        </div>
+                        {w.notes && <div className="exercise-notes" style={{marginTop: '12px', fontSize: '13px', color: 'var(--apple-text-secondary)', borderLeft: '2px solid var(--apple-border)', paddingLeft: '8px', background: 'transparent'}}>{w.notes}</div>}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            );
-          })}
-        </div>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
-    </>
-  )}
 
+      {/* ══════════ 个人记录 Tab ══════════ */}
       {activeTab === 'pr' && (
         <div>
           <h2 style={{ marginBottom: 20 }}>个人最佳记录</h2>
@@ -867,6 +911,7 @@ const Dashboard = () => {
         </div>
       )}
 
+      {/* ══════════ 训练模板 Tab ══════════ */}
       {activeTab === 'templates' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -881,6 +926,7 @@ const Dashboard = () => {
         </div>
       )}
 
+      {/* ══════════ 体重 Tab ══════════ */}
       {activeTab === 'body' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -928,6 +974,7 @@ const Dashboard = () => {
         </div>
       )}
 
+      {/* ── 模态框 ── */}
       {progressExercise && (
         <ProgressModal exercise={progressExercise} onClose={() => setProgressExercise(null)} token={token} />
       )}
