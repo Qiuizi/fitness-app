@@ -74,16 +74,36 @@ const EXERCISE_LIBRARY = {
   ],
 };
 
-// 部位颜色与图标配置
+// 部位配色（SVG图标，不依赖emoji字体，统一精致）
 const CATEGORY_META = {
-  '胸部':  { color: '#ff6b6b', bg: 'rgba(255,107,107,0.1)', icon: '🫁', desc: '胸大肌 · 前锯肌' },
-  '背部':  { color: '#4dabf7', bg: 'rgba(77,171,247,0.1)',  icon: '🔙', desc: '背阔肌 · 斜方肌 · 菱形肌' },
-  '腿部':  { color: '#69db7c', bg: 'rgba(105,219,124,0.1)', icon: '🦵', desc: '股四头肌 · 腘绳肌 · 小腿' },
-  '肩部':  { color: '#ffd43b', bg: 'rgba(255,212,59,0.1)',  icon: '🏔', desc: '三角肌前/中/后束' },
-  '手臂':  { color: '#da77f2', bg: 'rgba(218,119,242,0.1)', icon: '💪', desc: '二头肌 · 三头肌 · 前臂' },
-  '核心':  { color: '#ff922b', bg: 'rgba(255,146,43,0.1)',  icon: '🎯', desc: '腹直肌 · 腹斜肌 · 深层核心' },
-  '臀部':  { color: '#f783ac', bg: 'rgba(247,131,172,0.1)', icon: '🍑', desc: '臀大肌 · 臀中肌 · 臀小肌' },
-  '有氧':  { color: '#20c997', bg: 'rgba(32,201,151,0.1)',  icon: '🏃', desc: '心肺耐力 · 脂肪燃烧' },
+  '胸部': { color: '#e84040', bg: 'rgba(232,64,64,0.08)',   desc: '胸大肌 · 前锯肌' },
+  '背部': { color: '#2f86eb', bg: 'rgba(47,134,235,0.08)',  desc: '背阔肌 · 斜方肌 · 菱形肌' },
+  '腿部': { color: '#27ae60', bg: 'rgba(39,174,96,0.08)',   desc: '股四头肌 · 腘绳肌 · 小腿' },
+  '肩部': { color: '#d4a017', bg: 'rgba(212,160,23,0.08)',  desc: '三角肌前 / 中 / 后束' },
+  '手臂': { color: '#8e44ad', bg: 'rgba(142,68,173,0.08)',  desc: '二头肌 · 三头肌 · 前臂' },
+  '核心': { color: '#e67e22', bg: 'rgba(230,126,34,0.08)',  desc: '腹直肌 · 腹斜肌 · 深层核心' },
+  '臀部': { color: '#c0395e', bg: 'rgba(192,57,94,0.08)',   desc: '臀大肌 · 臀中肌 · 臀小肌' },
+  '有氧': { color: '#16a085', bg: 'rgba(22,160,133,0.08)',  desc: '心肺耐力 · 脂肪燃烧' },
+};
+
+// SVG图标：用简洁线条图标代替emoji
+const CategoryIcon = ({ cat, size = 18, color }) => {
+  const c = color || CATEGORY_META[cat]?.color || '#666';
+  const icons = {
+    '胸部': <><rect x="4" y="8" width="7" height="8" rx="3.5" stroke={c} strokeWidth="1.6" fill="none"/><rect x="13" y="8" width="7" height="8" rx="3.5" stroke={c} strokeWidth="1.6" fill="none"/><path d="M11 12h2" stroke={c} strokeWidth="1.6" strokeLinecap="round"/><path d="M4 8 Q12 4 20 8" stroke={c} strokeWidth="1.6" fill="none" strokeLinecap="round"/></>,
+    '背部': <><path d="M12 3 L12 21" stroke={c} strokeWidth="1.6" strokeLinecap="round"/><path d="M6 7 Q12 5 18 7" stroke={c} strokeWidth="1.6" fill="none" strokeLinecap="round"/><path d="M5 12 Q12 9 19 12" stroke={c} strokeWidth="1.6" fill="none" strokeLinecap="round"/><path d="M6 17 Q12 14 18 17" stroke={c} strokeWidth="1.6" fill="none" strokeLinecap="round"/></>,
+    '腿部': <><path d="M9 3 L7 21" stroke={c} strokeWidth="1.6" strokeLinecap="round"/><path d="M15 3 L17 21" stroke={c} strokeWidth="1.6" strokeLinecap="round"/><path d="M8.5 12 Q12 11 15.5 12" stroke={c} strokeWidth="1.4" fill="none"/><path d="M7 21 L10 21" stroke={c} strokeWidth="1.6" strokeLinecap="round"/><path d="M17 21 L14 21" stroke={c} strokeWidth="1.6" strokeLinecap="round"/></>,
+    '肩部': <><circle cx="12" cy="5" r="2" stroke={c} strokeWidth="1.6" fill="none"/><path d="M5 10 Q12 6 19 10" stroke={c} strokeWidth="1.6" fill="none" strokeLinecap="round"/><path d="M5 10 L5 19" stroke={c} strokeWidth="1.6" strokeLinecap="round"/><path d="M19 10 L19 19" stroke={c} strokeWidth="1.6" strokeLinecap="round"/><path d="M5 19 L19 19" stroke={c} strokeWidth="1.6" strokeLinecap="round"/></>,
+    '手臂': <><path d="M8 20 L8 10 Q8 4 14 4 Q17 4 17 8 Q17 11 14 11 L8 11" stroke={c} strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/><path d="M8 14 L15 14 Q18 14 18 17 Q18 20 15 20 L8 20" stroke={c} strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></>,
+    '核心': <><ellipse cx="12" cy="12" rx="7" ry="9" stroke={c} strokeWidth="1.6" fill="none"/><path d="M12 3 L12 21" stroke={c} strokeWidth="1.4" strokeLinecap="round"/><path d="M5.5 9 Q12 8 18.5 9" stroke={c} strokeWidth="1.2" fill="none"/><path d="M5 12 Q12 11 19 12" stroke={c} strokeWidth="1.2" fill="none"/><path d="M5.5 15 Q12 14 18.5 15" stroke={c} strokeWidth="1.2" fill="none"/></>,
+    '臀部': <><path d="M5 20 Q5 11 12 11 Q19 11 19 20" stroke={c} strokeWidth="1.6" fill="none" strokeLinecap="round"/><path d="M5 20 L19 20" stroke={c} strokeWidth="1.6" strokeLinecap="round"/><circle cx="8" cy="8" r="2.5" stroke={c} strokeWidth="1.4" fill="none"/><circle cx="16" cy="8" r="2.5" stroke={c} strokeWidth="1.4" fill="none"/></>,
+    '有氧': <><circle cx="12" cy="12" r="3" stroke={c} strokeWidth="1.6" fill="none"/><path d="M12 4 L12 7" stroke={c} strokeWidth="1.6" strokeLinecap="round"/><path d="M12 17 L12 20" stroke={c} strokeWidth="1.6" strokeLinecap="round"/><path d="M4 12 L7 12" stroke={c} strokeWidth="1.6" strokeLinecap="round"/><path d="M17 12 L20 12" stroke={c} strokeWidth="1.6" strokeLinecap="round"/><path d="M6.3 6.3 L8.5 8.5" stroke={c} strokeWidth="1.4" strokeLinecap="round"/><path d="M15.5 15.5 L17.7 17.7" stroke={c} strokeWidth="1.4" strokeLinecap="round"/><path d="M17.7 6.3 L15.5 8.5" stroke={c} strokeWidth="1.4" strokeLinecap="round"/><path d="M8.5 15.5 L6.3 17.7" stroke={c} strokeWidth="1.4" strokeLinecap="round"/></>,
+  };
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {icons[cat] || <circle cx="12" cy="12" r="8" stroke={c} strokeWidth="1.6" fill="none"/>}
+    </svg>
+  );
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -602,19 +622,24 @@ const AddWorkout = () => {
 
   // ── 选择动作
   const handleExerciseSelect = useCallback(async (ex, cat) => {
+    // 立刻切换到 log 页，防止用户等待网络时页面无响应
     setExercise(ex);
     const resolvedCat = cat || Object.keys(EXERCISE_LIBRARY).find(c => EXERCISE_LIBRARY[c].includes(ex)) || activeCategory;
     const cardio = isCardioExercise(ex, resolvedCat);
     setExerciseType(cardio ? 'cardio' : 'strength');
     setNotes(''); setSearchText('');
-    await loadExerciseData(ex, cardio);
     setPhase('log');
+    // 切换页面后立即回到顶部
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    // 后台加载历史数据
+    await loadExerciseData(ex, cardio);
   }, [activeCategory, loadExerciseData]);
 
   const handleBackToSelect = useCallback(() => {
     setSets([{ weight: '', reps: '', done: false, setDuration: 0 }]);
     setNotes(''); setExercise(''); setSuggestion(null); setLastRecord(null);
     setPhase('select');
+    window.scrollTo({ top: 0, behavior: 'instant' });
   }, []);
 
   // ── 组数操作（useCallback 避免 SetRow 不必要重渲染）
@@ -681,14 +706,15 @@ const AddWorkout = () => {
     const record = { date, exercise, type: exerciseType, sets: validSets, notes };
     setCompletedExercises(prev => [...prev, record]);
     setRestActive(false); setRestSecs(0);
+    window.scrollTo({ top: 0, behavior: 'instant' });
     if (templateQueue.length > 0) {
       const next = templateQueue[0];
       setTemplateQueue(q => q.slice(1));
       setExercise(next.exercise);
       setExerciseType(next.type || 'strength');
       setNotes('');
-      loadExerciseData(next.exercise, next.type === 'cardio');
       setPhase('log');
+      loadExerciseData(next.exercise, next.type === 'cardio');
     } else {
       setPhase('done');
     }
@@ -707,6 +733,7 @@ const AddWorkout = () => {
         })
       ));
       clearDraft();
+      window.scrollTo({ top: 0, behavior: 'instant' });
       setPhase('summary');
     } catch { alert('提交失败，请重试'); }
   }, [completedExercises, navigate, token]);
@@ -727,12 +754,18 @@ const AddWorkout = () => {
     } catch { alert('获取失败，请重试'); }
   }, [token, loadExerciseData]);
 
-  // ── 退出
+  // ── 退出（有任何训练数据时必须确认）
+  const hasAnyData = useCallback(() => {
+    if (completedExercises.length > 0) return true;
+    // 有任何填写过的组
+    if (sets.some(s => s.done || (s.weight !== '' && s.weight !== undefined) || (s.reps !== '' && s.reps !== undefined && s.reps !== 0))) return true;
+    return false;
+  }, [completedExercises, sets]);
+
   const handleExitIntent = useCallback(() => {
-    if (completedExercises.length === 0 && sets.every(s => !s.weight && !s.reps && !s.done)) {
-      clearDraft(); navigate('/');
-    } else setShowExit(true);
-  }, [completedExercises, sets, navigate]);
+    if (!hasAnyData()) { clearDraft(); navigate('/'); }
+    else setShowExit(true);
+  }, [hasAnyData, navigate]);
 
   const handleSaveAndExit = useCallback(() => {
     saveDraft({ phase, date, exercise, exerciseType, sets, notes, completedExercises, templateQueue, energyLevel });
@@ -787,8 +820,8 @@ const AddWorkout = () => {
           <span style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-.02em' }}>
             {completedExercises.length > 0 ? `第 ${completedExercises.length + 1} 个动作` : '选择动作'}
           </span>
-          <button onClick={handleExitIntent} style={{ background: 'var(--surface-3)', color: 'var(--text-2)', border: 'none', borderRadius: 99, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-            {completedExercises.length > 0 ? '结束' : '取消'}
+          <button onClick={handleExitIntent} style={{ background: completedExercises.length > 0 ? 'var(--c-green-dim)' : 'var(--surface-3)', color: completedExercises.length > 0 ? '#1a7a35' : 'var(--text-3)', border: 'none', borderRadius: 99, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+            {completedExercises.length > 0 ? '结束训练' : '取消'}
           </button>
         </div>
 
@@ -813,33 +846,39 @@ const AddWorkout = () => {
         {/* 搜索框 */}
         <input type="text" placeholder="搜索动作…" value={searchText} onChange={e => setSearchText(e.target.value)} style={{ marginBottom: 12 }} />
 
-        {/* 部位分类 Tab（带颜色和图标） */}
+        {/* 部位分类 Tab */}
         {!searchText && (
           <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 10, marginBottom: 16, WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
-            {Object.entries(CATEGORY_META).map(([cat, meta]) => (
-              <div key={cat} onClick={() => setActiveCategory(cat)} style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '8px 14px', borderRadius: 99, cursor: 'pointer',
-                whiteSpace: 'nowrap', flexShrink: 0, transition: 'all .15s',
-                background: activeCategory === cat ? meta.color : 'var(--surface)',
-                color: activeCategory === cat ? '#fff' : 'var(--text-2)',
-                border: `1px solid ${activeCategory === cat ? meta.color : 'var(--border)'}`,
-                fontWeight: 700, fontSize: 13,
-                boxShadow: activeCategory === cat ? `0 4px 12px ${meta.bg.replace('.1)', '.35)')}` : 'none',
-              }}>
-                <span style={{ fontSize: 15 }}>{meta.icon}</span>
-                <span>{cat}</span>
-              </div>
-            ))}
-            <div onClick={() => setActiveCategory('Custom')} style={{ padding: '8px 14px', borderRadius: 99, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontWeight: 700, fontSize: 13, background: activeCategory === 'Custom' ? 'var(--text-1)' : 'var(--surface)', color: activeCategory === 'Custom' ? '#fff' : 'var(--c-blue)', border: `1.5px dashed ${activeCategory === 'Custom' ? 'var(--text-1)' : 'var(--c-blue)'}` }}>+ 自定义</div>
+            {Object.entries(CATEGORY_META).map(([cat, meta]) => {
+              const active = activeCategory === cat;
+              return (
+                <div key={cat} onClick={() => setActiveCategory(cat)} style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '7px 13px', borderRadius: 99, cursor: 'pointer',
+                  whiteSpace: 'nowrap', flexShrink: 0, transition: 'all .15s',
+                  background: active ? meta.color : 'var(--surface)',
+                  border: `1px solid ${active ? meta.color : 'var(--border)'}`,
+                  fontWeight: 600, fontSize: 13,
+                  boxShadow: active ? `0 4px 14px ${meta.color}44` : 'none',
+                }}>
+                  <CategoryIcon cat={cat} size={15} color={active ? '#fff' : meta.color} />
+                  <span style={{ color: active ? '#fff' : 'var(--text-2)' }}>{cat}</span>
+                </div>
+              );
+            })}
+            <div onClick={() => setActiveCategory('Custom')} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 13px', borderRadius: 99, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontWeight: 600, fontSize: 13, background: activeCategory === 'Custom' ? 'var(--text-1)' : 'var(--surface)', color: activeCategory === 'Custom' ? '#fff' : 'var(--c-blue)', border: `1.5px dashed ${activeCategory === 'Custom' ? 'var(--text-1)' : 'var(--c-blue)'}` }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke={activeCategory === 'Custom' ? '#fff' : 'var(--c-blue)'} strokeWidth="2.2" strokeLinecap="round"/></svg>
+              <span>自定义</span>
+            </div>
           </div>
         )}
 
-        {/* 当前分类描述 */}
+        {/* 当前分类描述条 */}
         {!searchText && activeCategory !== 'Custom' && CATEGORY_META[activeCategory] && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, padding: '8px 12px', background: CATEGORY_META[activeCategory].bg, borderRadius: 10 }}>
-            <span style={{ fontSize: 16 }}>{CATEGORY_META[activeCategory].icon}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, padding: '9px 14px', background: CATEGORY_META[activeCategory].bg, borderRadius: 'var(--r-s)', borderLeft: `3px solid ${CATEGORY_META[activeCategory].color}` }}>
+            <CategoryIcon cat={activeCategory} size={16} color={CATEGORY_META[activeCategory].color} />
             <span style={{ fontSize: 12, fontWeight: 600, color: CATEGORY_META[activeCategory].color }}>{CATEGORY_META[activeCategory].desc}</span>
+            <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-4)', fontWeight: 500 }}>{EXERCISE_LIBRARY[activeCategory]?.length} 个动作</span>
           </div>
         )}
 
@@ -851,13 +890,19 @@ const AddWorkout = () => {
               const cat = Object.keys(EXERCISE_LIBRARY).find(c => EXERCISE_LIBRARY[c].includes(ex));
               const meta = CATEGORY_META[cat];
               return (
-                <div key={ex} onClick={() => handleExerciseSelect(ex, searchText ? null : activeCategory)} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-m)', padding: '13px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, transition: 'all .15s' }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: meta?.bg || 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{meta?.icon || '🏋️'}</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 15, fontWeight: 600 }}>{ex}</div>
-                    {searchText && cat && <div style={{ fontSize: 11, color: meta?.color || 'var(--text-3)', fontWeight: 600, marginTop: 1 }}>{cat}</div>}
+                <div key={ex} onClick={() => handleExerciseSelect(ex, searchText ? null : activeCategory)}
+                  style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-m)', padding: '12px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, transition: 'background .1s', WebkitTapHighlightColor: 'transparent' }}
+                  onTouchStart={e => e.currentTarget.style.background = 'var(--surface-3)'}
+                  onTouchEnd={e => e.currentTarget.style.background = 'var(--surface)'}
+                >
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: meta?.bg || 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <CategoryIcon cat={cat} size={18} color={meta?.color || 'var(--text-3)'} />
                   </div>
-                  <span style={{ color: 'var(--text-4)', fontSize: 18 }}>›</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-1)' }}>{ex}</div>
+                    {searchText && cat && <div style={{ fontSize: 11, color: meta?.color, fontWeight: 600, marginTop: 2 }}>{cat}</div>}
+                  </div>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="var(--text-4)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </div>
               );
             })}
@@ -892,9 +937,16 @@ const AddWorkout = () => {
             ))}
           </div>
         )}
-        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-          <button onClick={handleBackToSelect} style={{ background: 'var(--surface-3)', color: 'var(--text-2)', border: 'none', borderRadius: 99, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>‹ 重选</button>
-          <button onClick={handleExitIntent} style={{ background: 'var(--surface-3)', color: 'var(--text-2)', border: 'none', borderRadius: 99, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>退出</button>
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          {/* 重选：蓝色轮廓，清晰可见 */}
+          <button onClick={handleBackToSelect} style={{ background: 'var(--c-blue-dim)', color: 'var(--c-blue)', border: '1px solid rgba(0,113,227,.2)', borderRadius: 99, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+            ‹ 重选
+          </button>
+          {/* 退出：灰色低调，需要长按才触发，防止误触 */}
+          <button
+            onClick={handleExitIntent}
+            style={{ background: 'var(--surface-3)', color: 'var(--text-4)', border: 'none', borderRadius: 99, padding: '6px 10px', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}
+          >✕</button>
         </div>
       </div>
 
@@ -910,11 +962,23 @@ const AddWorkout = () => {
       </div>
 
       {/* 动作标题 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
-        {(() => { const cat = Object.keys(EXERCISE_LIBRARY).find(c => EXERCISE_LIBRARY[c].includes(exercise)); const meta = CATEGORY_META[cat]; return meta ? <div style={{ width: 40, height: 40, borderRadius: 10, background: meta.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>{meta.icon}</div> : null; })()}
-        <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, letterSpacing: '-.025em', flex: 1 }}>{exercise}</h2>
-        <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 99, textTransform: 'uppercase', letterSpacing: '.06em', background: isCardio ? 'var(--c-orange-dim)' : 'var(--c-blue-dim)', color: isCardio ? '#b86800' : 'var(--c-blue)' }}>{isCardio ? '有氧' : '力量'}</span>
-        {isLoading && <span style={{ fontSize: 11, color: 'var(--text-4)' }}>加载中…</span>}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+        {(() => {
+          const cat = Object.keys(EXERCISE_LIBRARY).find(c => EXERCISE_LIBRARY[c].includes(exercise));
+          const meta = CATEGORY_META[cat];
+          return meta ? (
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: meta.bg, border: `1.5px solid ${meta.color}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <CategoryIcon cat={cat} size={22} color={meta.color} />
+            </div>
+          ) : null;
+        })()}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: '-.02em', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{exercise}</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: isCardio ? 'var(--c-orange-dim)' : 'var(--c-blue-dim)', color: isCardio ? '#b86800' : 'var(--c-blue)', textTransform: 'uppercase', letterSpacing: '.05em' }}>{isCardio ? '有氧' : '力量'}</span>
+            {isLoading && <span style={{ fontSize: 11, color: 'var(--text-4)' }}>加载中…</span>}
+          </div>
+        </div>
       </div>
 
       {isCardio && <CardioTimer onFinish={(mins) => { if (mins > 0) setSets([{ weight: mins, reps: 0, done: false, setDuration: 0 }]); }} />}
