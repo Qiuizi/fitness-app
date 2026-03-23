@@ -472,7 +472,7 @@ const ExerciseDonePage = memo(({ exercise, sets, completedExercises, onNext, onE
 });
 
 // ─── 结算分享卡片
-const WorkoutSummary = memo(({ records, duration, onDone }) => {
+const WorkoutSummary = memo(({ records, duration, onDone, onSaveTemplate }) => {
   const totalVol  = records.filter(r => r.type !== 'cardio').reduce((a, r) => a + r.sets.reduce((b, s) => b + (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0), 0), 0);
   const totalSets = records.reduce((a, r) => a + r.sets.length, 0);
   const mins      = Math.floor(duration / 60);
@@ -532,12 +532,55 @@ const WorkoutSummary = memo(({ records, duration, onDone }) => {
         </div>
       </div>
       <div style={{ width: '100%', maxWidth: 390, marginTop: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <button onClick={onSaveTemplate} style={{ width: '100%', padding: 13, fontSize: 14, fontWeight: 600, borderRadius: 'var(--r-xl)', background: 'rgba(94,92,230,.12)', color: 'var(--c-purple)', border: '1px solid rgba(94,92,230,.2)', cursor: 'pointer' }}>📋 保存为模板</button>
         <button onClick={onDone} style={{ width: '100%', padding: 15, fontSize: 16, fontWeight: 700, borderRadius: 'var(--r-xl)', background: 'var(--c-blue)', color: '#fff', border: 'none', cursor: 'pointer' }}>回到主页</button>
         <button onClick={() => navigator.share?.({ title: 'IRON 健身日记', text: `今天完成训练！${records.length}个动作，${totalSets}组，${mins}分钟。` })} style={{ width: '100%', padding: 13, fontSize: 14, fontWeight: 600, borderRadius: 'var(--r-xl)', background: 'var(--surface-3)', color: 'var(--text-2)', border: 'none', cursor: 'pointer' }}>分享成就</button>
       </div>
     </div>
   );
 });
+
+// ─── 保存为模板 Modal ─────────────────────────────────────────────────────────
+const SaveTemplateModal = ({ records, onSave, onClose }) => {
+  const [name, setName] = useState('');
+  const [selected, setSelected] = useState(records.map((_, i) => i));
+  const toggle = (i) => setSelected(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i]);
+  const exercises = selected.map(i => {
+    const r = records[i];
+    return {
+      exercise: r.exercise,
+      type: r.type || 'strength',
+      sets: r.sets.slice(0, 3).map(s => ({ weight: parseFloat(s.weight) || 0, reps: parseInt(s.reps) || 0 })),
+    };
+  });
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-card wide" onClick={e => e.stopPropagation()}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+          <h3 style={{ margin:0 }}>保存为模板</h3>
+          <button className="secondary" onClick={onClose} style={{ padding:'6px 14px', fontSize:13 }}>取消</button>
+        </div>
+        <label>模板名称</label>
+        <input type="text" placeholder="如：胸背日" value={name} onChange={e => setName(e.target.value)} autoFocus />
+        <label>选择动作（点击取消不需要的）</label>
+        <div style={{ display:'flex', flexDirection:'column', gap:6, maxHeight:'40vh', overflowY:'auto', marginBottom:16 }}>
+          {records.map((r, i) => (
+            <div key={i} onClick={() => toggle(i)} style={{ padding:'10px 12px', borderRadius:10, cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center', background: selected.includes(i) ? 'var(--c-blue-dim)' : 'var(--surface-3)', border: `1px solid ${selected.includes(i) ? 'rgba(0,113,227,.2)' : 'transparent'}` }}>
+              <div>
+                <div style={{ fontSize:14, fontWeight:600 }}>{r.exercise}</div>
+                <div style={{ fontSize:11, color:'var(--text-4)' }}>{r.sets.length} 组</div>
+              </div>
+              <span style={{ fontSize:16 }}>{selected.includes(i) ? '✅' : '⬜'}</span>
+            </div>
+          ))}
+        </div>
+        <button disabled={!name.trim() || selected.length === 0} onClick={() => onSave({ name: name.trim(), exercises })} style={{ width:'100%' }}>
+          保存模板（{selected.length} 个动作）
+        </button>
+      </div>
+    </div>
+  );
+};
 
 // ═══════════════════════════════════════════════════════════════
 // 主组件
@@ -589,6 +632,9 @@ const AddWorkout = () => {
 
   // 动作替代建议
   const [alternatives, setAlternatives] = useState([]);
+
+  // 保存为模板
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
 
   // 休息计时：用 key 控制 RestTimer 组件重新挂载
   const [restKey, setRestKey]         = useState(0);
@@ -660,6 +706,21 @@ const AddWorkout = () => {
   }, [draft]);
 
   const handleDiscardDraft = useCallback(() => { clearDraft(); setDraft(null); setPhase('select'); }, []);
+
+  // ── 保存为模板
+  const handleSaveAsTemplate = useCallback(async (templateData) => {
+    try {
+      const res = await fetch(`${API_URL}/api/workouts/templates`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body: JSON.stringify(templateData),
+      });
+      if (res.ok) {
+        alert('模板保存成功！');
+        setShowSaveTemplate(false);
+      }
+    } catch { alert('保存失败'); }
+  }, [token]);
 
   // ── 推荐休息时间
   const getRestTime = useCallback(() => {
@@ -857,31 +918,46 @@ const AddWorkout = () => {
     navigate('/');
   }, [phase, date, exercise, exerciseType, sets, notes, completedExercises, templateQueue, energyLevel, navigate]);
 
-  const handleDiscardAndExit = useCallback(() => { clearDraft(); navigate('/'); }, [navigate]);
+  // ── 手机端防退出机制
+  useEffect(() => {
+    if (phase === 'init' || phase === 'summary' || phase === 'done') return;
 
-  // ── 搜索结果（useMemo 避免每次渲染重新计算）
-  const searchResults = useMemo(() => searchExercises(searchText, customExercises), [searchText, customExercises]);
-  const filteredExercises = searchText.trim() ? searchResults.map(r => r.ex) : (EXERCISE_LIBRARY[activeCategory] || []);
+    // 1. 拦截浏览器关闭/刷新
+    const handleBeforeUnload = (e) => {
+      if (completedExercises.length > 0 || sets.some(s => s.done)) {
+        e.preventDefault();
+        e.returnValue = '训练尚未保存，确定要离开吗？';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
 
-  const isCardio = exerciseType === 'cardio';
-  const totalExercises = completedExercises.length + (phase === 'log' ? 1 : 0) + templateQueue.length;
-  const currentIdx     = completedExercises.length;
+    // 2. 拦截手机浏览器返回按钮（popstate）
+    const handlePopState = (e) => {
+      if (completedExercises.length > 0 || sets.some(s => s.done)) {
+        e.preventDefault();
+        window.history.pushState(null, '', window.location.href);
+        setShowExit(true);
+      }
+    };
+    window.history.pushState(null, '', window.location.href);
+    window.addEventListener('popstate', handlePopState);
 
-  // ── 应用建议
-  const applySuggestion = useCallback(() => {
-    if (suggestion) {
-      const w = energyLevel <= 2 ? Math.round(suggestion.suggestedWeight * 0.85 * 2) / 2 : energyLevel >= 4 ? Math.round(suggestion.suggestedWeight * 1.05 * 2) / 2 : suggestion.suggestedWeight;
-      setSets(prev => prev.map(s => ({ ...s, weight: w, reps: suggestion.suggestedReps })));
-    } else if (lastRecord?.sets?.length) {
-      setSets(lastRecord.sets.map(s => ({ weight: s.weight, reps: s.reps, done: false, setDuration: 0, isWarmup: s.isWarmup || false, rpe: s.rpe || undefined, setType: s.setType || 'normal' })));
-    }
-  }, [suggestion, lastRecord, energyLevel]);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [phase, completedExercises, sets]);
 
   // ════════ 渲染 ════════
 
   if (phase === 'init') return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh', color: 'var(--text-3)', fontSize: 14 }}>加载中…</div>;
 
-  if (phase === 'summary') return <div style={{ maxWidth: 'var(--content-w)', margin: '0 auto' }}><WorkoutSummary records={completedExercises} duration={elapsed} onDone={() => navigate('/')} /></div>;
+  if (phase === 'summary') return (
+    <div style={{ maxWidth: 'var(--content-w)', margin: '0 auto' }}>
+      <WorkoutSummary records={completedExercises} duration={elapsed} onDone={() => navigate('/')} onSaveTemplate={() => setShowSaveTemplate(true)} />
+      {showSaveTemplate && <SaveTemplateModal records={completedExercises} onClose={() => setShowSaveTemplate(false)} onSave={handleSaveAsTemplate} />}
+    </div>
+  );
 
   if (phase === 'done') {
     const lastEx = completedExercises[completedExercises.length - 1];
