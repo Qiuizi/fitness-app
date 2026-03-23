@@ -605,7 +605,7 @@ const AddWorkout = () => {
   }, []);
 
   // 核心状态
-  const [phase, setPhase]               = useState('init');
+  const [phase, setPhase]               = useState('select');
   const [date, setDate]                 = useState(toDay());
   const [exercise, setExercise]         = useState('');
   const [exerciseType, setExerciseType] = useState('strength');
@@ -664,14 +664,13 @@ const AddWorkout = () => {
     } else {
       const saved = loadDraft();
       if (saved) setDraft(saved);
-      setPhase('select');
     }
   }, []);
 
   // ── 自动保存（不含 elapsed，避免每秒写入）
   const draftTimerRef = useRef(null);
   useEffect(() => {
-    if (phase === 'summary' || phase === 'init') return;
+    if (phase === 'summary' || phase === 'done') return;
     if (completedExercises.length === 0 && sets.every(s => !s.weight && !s.reps && !s.done)) return;
     // 防抖 500ms
     clearTimeout(draftTimerRef.current);
@@ -920,7 +919,7 @@ const AddWorkout = () => {
 
   // ── 手机端防退出机制
   useEffect(() => {
-    if (phase === 'init' || phase === 'summary' || phase === 'done') return;
+    if (phase === 'summary' || phase === 'done') return;
     const hasData = completedExercises.length > 0 || sets.some(s => s.done);
 
     // 1. 拦截浏览器关闭/刷新
