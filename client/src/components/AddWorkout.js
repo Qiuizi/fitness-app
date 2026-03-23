@@ -609,7 +609,7 @@ const AddWorkout = () => {
   const [date, setDate]                 = useState(toDay());
   const [exercise, setExercise]         = useState('');
   const [exerciseType, setExerciseType] = useState('strength');
-  const [sets, setSets]                 = useState([{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined, isWarmup: false, rpe: undefined }]);
+  const [sets, setSets]                 = useState([{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined, setType: 'normal' }]);
   const [notes, setNotes]               = useState('');
   const [completedExercises, setCompletedExercises] = useState([]);
   const [templateQueue, setTemplateQueue] = useState([]);
@@ -657,16 +657,16 @@ const AddWorkout = () => {
       const first = templateData.exercises[0];
       setExercise(first.exercise);
       setExerciseType(first.type || 'strength');
-      setSets(first.sets?.length ? first.sets.map(s => ({ ...s, done: false, setDuration: 0, isWarmup: false, rpe: undefined })) : [{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined }]);
+      setSets(first.sets?.length ? first.sets.map(s => ({ ...s, done: false, setDuration: 0, isWarmup: s.isWarmup || false, rpe: s.rpe || undefined, setType: s.setType || 'normal' })) : [{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined, setType: 'normal' }]);
       setTemplateQueue(templateData.exercises.slice(1));
-      loadExerciseData(first.exercise, first.type === 'cardio');
       setPhase('log');
+      loadExerciseData(first.exercise, first.type === 'cardio');
     } else {
       const saved = loadDraft();
       if (saved) setDraft(saved);
-      else setPhase('select');
+      setPhase('select');
     }
-  }, []); // init once — loadExerciseData stable via useCallback
+  }, []);
 
   // ── 自动保存（不含 elapsed，避免每秒写入）
   const draftTimerRef = useRef(null);
@@ -696,7 +696,7 @@ const AddWorkout = () => {
     setDate(draft.date || toDay());
     setExercise(draft.exercise || '');
     setExerciseType(draft.exerciseType || 'strength');
-    setSets(draft.sets || [{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined }]);
+    setSets(draft.sets || [{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined, setType: 'normal' }]);
     setNotes(draft.notes || '');
     setCompletedExercises(draft.completedExercises || []);
     setTemplateQueue(draft.templateQueue || []);
@@ -893,7 +893,7 @@ const AddWorkout = () => {
       if (!window.confirm(`复制 ${new Date(data.date).toLocaleDateString('zh-CN')} 的训练？共 ${data.exercises.length} 个动作`)) return;
       const first = data.exercises[0];
       setExercise(first.exercise); setExerciseType(first.type || 'strength');
-      setSets(first.sets.map(s => ({ weight: s.weight, reps: s.reps, done: false, setDuration: 0, isWarmup: false, rpe: undefined })));
+      setSets(first.sets.map(s => ({ weight: s.weight, reps: s.reps, done: false, setDuration: 0, isWarmup: s.isWarmup || false, rpe: s.rpe || undefined, setType: s.setType || 'normal' })));
       setTemplateQueue(data.exercises.slice(1));
       await loadExerciseData(first.exercise, first.type === 'cardio');
       setPhase('log');
@@ -921,6 +921,7 @@ const AddWorkout = () => {
   // ── 手机端防退出机制
   useEffect(() => {
     if (phase === 'init' || phase === 'summary' || phase === 'done') return;
+    const hasData = completedExercises.length > 0 || sets.some(s => s.done);
 
     // 1. 拦截浏览器关闭/刷新
     const handleBeforeUnload = (e) => {
@@ -931,26 +932,25 @@ const AddWorkout = () => {
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
 
-    // 2. 拦截手机浏览器返回按钮（popstate）
-    const handlePopState = (e) => {
-      if (completedExercises.length > 0 || sets.some(s => s.done)) {
+    // 2. 拦截手机浏览器返回按钮 — 只在有未保存数据时才拦截
+    let popStateHandler = null;
+    if (hasData) {
+      window.history.pushState(null, '', window.location.href);
+      popStateHandler = (e) => {
         e.preventDefault();
         window.history.pushState(null, '', window.location.href);
         setShowExit(true);
-      }
-    };
-    window.history.pushState(null, '', window.location.href);
-    window.addEventListener('popstate', handlePopState);
+      };
+      window.addEventListener('popstate', popStateHandler);
+    }
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('popstate', handlePopState);
+      if (popStateHandler) window.removeEventListener('popstate', popStateHandler);
     };
   }, [phase, completedExercises, sets]);
 
   // ════════ 渲染 ════════
-
-  if (phase === 'init') return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh', color: 'var(--text-3)', fontSize: 14 }}>加载中…</div>;
 
   if (phase === 'summary') return (
     <div style={{ maxWidth: 'var(--content-w)', margin: '0 auto' }}>
@@ -965,7 +965,7 @@ const AddWorkout = () => {
       <ExerciseDonePage
         exercise={lastEx?.exercise} sets={lastEx?.sets || []}
         completedExercises={completedExercises.slice(0, -1)}
-        onNext={() => { setSets([{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined }]); setNotes(''); setExercise(''); setSuggestion(null); setLastRecord(null); setPhase('select'); }}
+        onNext={() => { setSets([{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined, setType: 'normal' }]); setNotes(''); setExercise(''); setSuggestion(null); setLastRecord(null); setPhase('select'); }}
         onEnd={() => handleEndWorkout()}
       />
     );

@@ -869,8 +869,8 @@ const Dashboard = () => {
     } catch (e) { console.error(e); }
   };
 
-  const handleStartTemplate = async (template) => {
-    try { await fetch(`${API_URL}/api/workouts/templates/${template._id}/use`, { method: 'POST', headers: { 'x-auth-token': token } }); } catch {}
+  const handleStartTemplate = (template) => {
+    fetch(`${API_URL}/api/workouts/templates/${template._id}/use`, { method: 'POST', headers: { 'x-auth-token': token } }).catch(() => {});
     navigate('/add', { state: { template } });
   };
 
