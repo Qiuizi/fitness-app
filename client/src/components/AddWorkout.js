@@ -710,7 +710,7 @@ const AddWorkout = () => {
   }, [activeCategory, loadExerciseData]);
 
   const handleBackToSelect = useCallback(() => {
-    setSets([{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined }]);
+    setSets([{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined, setType: 'normal' }]);
     setNotes(''); setExercise(''); setSuggestion(null); setLastRecord(null);
     setPhase('select');
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -751,7 +751,7 @@ const AddWorkout = () => {
   const addSet = useCallback(() => {
     setSets(prev => {
       const last = prev[prev.length - 1];
-      return [...prev, { weight: last?.weight || '', reps: last?.reps || '', done: false, setDuration: 0, isWarmup: false, rpe: undefined }];
+      return [...prev, { weight: last?.weight || '', reps: last?.reps || '', done: false, setDuration: 0, isWarmup: false, rpe: undefined, setType: 'normal' }];
     });
   }, []);
 
@@ -873,7 +873,7 @@ const AddWorkout = () => {
       const w = energyLevel <= 2 ? Math.round(suggestion.suggestedWeight * 0.85 * 2) / 2 : energyLevel >= 4 ? Math.round(suggestion.suggestedWeight * 1.05 * 2) / 2 : suggestion.suggestedWeight;
       setSets(prev => prev.map(s => ({ ...s, weight: w, reps: suggestion.suggestedReps })));
     } else if (lastRecord?.sets?.length) {
-      setSets(lastRecord.sets.map(s => ({ weight: s.weight, reps: s.reps, done: false, setDuration: 0, isWarmup: false, rpe: undefined })));
+      setSets(lastRecord.sets.map(s => ({ weight: s.weight, reps: s.reps, done: false, setDuration: 0, isWarmup: s.isWarmup || false, rpe: s.rpe || undefined, setType: s.setType || 'normal' })));
     }
   }, [suggestion, lastRecord, energyLevel]);
 
@@ -1087,7 +1087,7 @@ const AddWorkout = () => {
         </div>
       </div>
 
-      {isCardio && <CardioTimer onFinish={(mins) => { if (mins > 0) setSets([{ weight: mins, reps: 0, done: false, setDuration: 0, isWarmup: false, rpe: undefined }]); }} />}
+      {isCardio && <CardioTimer onFinish={(mins) => { if (mins > 0) setSets([{ weight: mins, reps: 0, done: false, setDuration: 0, isWarmup: false, rpe: undefined, setType: 'normal' }]); }} />}
 
       {/* 上次记录 */}
       {lastRecord && !isCardio && (

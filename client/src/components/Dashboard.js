@@ -271,20 +271,19 @@ const TemplateManager = ({ templates, onStartTemplate, onDelete, onCreateNew }) 
               {t.lastUsed && (
                 <div style={{ fontSize: 11, color: 'var(--c-blue)', marginTop: 2, fontWeight: 500 }}>
                   上次 {new Date(t.lastUsed).toLocaleDateString('zh-CN')}{t.useCount > 1 && ` · ${t.useCount}次`}
+                </div>
+              )}
             </div>
-          )}
-
-          {/* 体态对比入口 */}
-          <div onClick={() => setShowPhotos(true)} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r-xl)', padding:'14px 16px', cursor:'pointer', display:'flex', alignItems:'center', gap:12, marginBottom:14 }}>
-            <span style={{ fontSize:24 }}>📸</span>
-            <div style={{ flex:1 }}>
-              <div style={{ fontSize:14, fontWeight:700 }}>体态对比</div>
-              <div style={{ fontSize:12, color:'var(--text-3)' }}>{progressPhotos.length > 0 ? `${progressPhotos.length}张照片 · 点击对比` : '上传照片记录变化'}</div>
-            </div>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="var(--text-4)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            <button onClick={() => onStartTemplate(t)} style={{ padding: '9px 18px', fontSize: 14, flexShrink: 0 }}>开始</button>
           </div>
-        </div>
-      );
+        </SwipeToDeleteRow>
+      ))}
+      <button onClick={onCreateNew}
+        style={{ border: '1.5px dashed var(--border)', background: 'transparent', color: 'var(--text-3)', padding: '14px', fontSize: 14, fontWeight: 600, borderRadius: 'var(--r-l)', marginTop: 4 }}>
+        + 新建模板
+      </button>
+    </div>
+  );
 };
 
 // ─── Body Weight Modal ────────────────────────────────────────────────────────
@@ -1139,6 +1138,16 @@ const Dashboard = () => {
               </div>
             </div>
           )}
+
+          {/* 体态对比入口 */}
+          <div onClick={() => setShowPhotos(true)} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r-xl)', padding:'14px 16px', cursor:'pointer', display:'flex', alignItems:'center', gap:12, marginBottom:14 }}>
+            <span style={{ fontSize:24 }}>📸</span>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:14, fontWeight:700 }}>体态对比</div>
+              <div style={{ fontSize:12, color:'var(--text-3)' }}>{progressPhotos.length > 0 ? `${progressPhotos.length}张照片 · 点击对比` : '上传照片记录变化'}</div>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="var(--text-4)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </div>
         </div>
       );
 
