@@ -422,6 +422,135 @@ const ProfileModal = ({ onClose, onSave, onLogout, currentProfile }) => {
   );
 };
 
+// ─── Edit Workout Modal ──────────────────────────────────────────────────────
+const EditWorkoutModal = ({ workout, onSave, onClose }) => {
+  const [sets, setSets] = useState(workout.sets.map((s, i) => ({ ...s, idx: i })));
+  const isCardio = workout.type === 'cardio';
+  const handleSetChange = (i, field, val) => {
+    setSets(prev => { const ns = [...prev]; ns[i] = { ...ns[i], [field]: field === 'isWarmup' ? val : (field === 'rpe' ? (val || undefined) : parseFloat(val) || 0) }; return ns; });
+  };
+  const removeSet = (i) => setSets(prev => prev.length <= 1 ? prev : prev.filter((_, j) => j !== i));
+  const addSet = () => setSets(prev => [...prev, { weight: 0, reps: 0, isWarmup: false, rpe: undefined, idx: prev.length }]);
+  const handleSave = () => {
+    onSave(sets.map(({ idx, ...s }) => s));
+  };
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-card wide" onClick={e => e.stopPropagation()}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+          <h3 style={{ margin:0 }}>编辑 {workout.exercise}</h3>
+          <button className="secondary" onClick={onClose} style={{ padding:'6px 14px', fontSize:13 }}>关闭</button>
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', gap:8, maxHeight:'50vh', overflowY:'auto', marginBottom:16 }}>
+          {sets.map((s, i) => (
+            <div key={i} style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 10px', background:'var(--surface-3)', borderRadius:10 }}>
+              <span style={{ fontSize:11, fontWeight:700, color: s.isWarmup ? 'var(--c-orange)' : 'var(--text-4)', width:24 }}>{s.isWarmup ? 'W' : 'S'}{i+1}</span>
+              {isCardio ? (
+                <>
+                  <input type="number" value={s.weight} onChange={e => handleSetChange(i, 'weight', e.target.value)} placeholder="分钟" style={{ width:60, fontSize:14, textAlign:'center', border:'none', background:'white', borderRadius:6, padding:'6px 4px', outline:'none' }} />
+                  <span style={{ fontSize:10, color:'var(--text-4)' }}>min</span>
+                  <input type="number" value={s.reps} onChange={e => handleSetChange(i, 'reps', e.target.value)} placeholder="卡路里" style={{ width:60, fontSize:14, textAlign:'center', border:'none', background:'white', borderRadius:6, padding:'6px 4px', outline:'none' }} />
+                  <span style={{ fontSize:10, color:'var(--text-4)' }}>kcal</span>
+                </>
+              ) : (
+                <>
+                  <input type="number" value={s.weight} onChange={e => handleSetChange(i, 'weight', e.target.value)} style={{ width:56, fontSize:14, textAlign:'center', border:'none', background:'white', borderRadius:6, padding:'6px 4px', outline:'none' }} />
+                  <span style={{ fontSize:10, color:'var(--text-4)' }}>kg</span>
+                  <span style={{ color:'var(--text-4)' }}>×</span>
+                  <input type="number" value={s.reps} onChange={e => handleSetChange(i, 'reps', e.target.value)} style={{ width:44, fontSize:14, textAlign:'center', border:'none', background:'white', borderRadius:6, padding:'6px 4px', outline:'none' }} />
+                  <span style={{ fontSize:10, color:'var(--text-4)' }}>次</span>
+                  <button onClick={() => handleSetChange(i, 'isWarmup', !s.isWarmup)} style={{ background: s.isWarmup ? 'var(--c-orange-dim)' : 'white', border:'none', borderRadius:6, padding:'4px 8px', fontSize:10, fontWeight:700, cursor:'pointer', color: s.isWarmup ? '#b86800' : 'var(--text-4)' }}>{s.isWarmup ? '热' : '正'}</button>
+                </>
+              )}
+              <button onClick={() => removeSet(i)} style={{ marginLeft:'auto', background:'none', border:'none', color:'var(--c-red)', fontSize:16, cursor:'pointer', padding:'0 4px' }}>×</button>
+            </div>
+          ))}
+        </div>
+        <button onClick={addSet} style={{ width:'100%', background:'var(--c-blue-dim)', color:'var(--c-blue)', border:'none', borderRadius:10, padding:'8px', fontSize:13, fontWeight:600, cursor:'pointer', marginBottom:12 }}>+ 添加一组</button>
+        <div style={{ display:'flex', gap:10 }}>
+          <button className="secondary" onClick={onClose} style={{ flex:1 }}>取消</button>
+          <button onClick={handleSave} style={{ flex:2 }}>保存修改</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── 多周计划创建 Modal ──────────────────────────────────────────────────────
+const CreatePlanModal = ({ templates, onClose, onSave }) => {
+  const [name, setName] = useState('');
+  const [weeks, setWeeks] = useState(8);
+  const [schedule, setSchedule] = useState([]);
+  const dayNames = ['周日','周一','周二','周三','周四','周五','周六'];
+
+  const toggleDay = (week, dow) => {
+    setSchedule(prev => {
+      const existing = prev.findIndex(s => s.week === week && s.dayOfWeek === dow);
+      if (existing >= 0) return prev.filter((_, i) => i !== existing);
+      return [...prev, { week, dayOfWeek: dow, templateId: templates[0]?._id || '', label: templates[0]?.name || '', isRestDay: false }];
+    });
+  };
+  const setRestDay = (week, dow) => {
+    setSchedule(prev => {
+      const existing = prev.findIndex(s => s.week === week && s.dayOfWeek === dow);
+      if (existing >= 0) return prev.map((s, i) => i === existing ? { ...s, isRestDay: true, label: '休息日', templateId: '' } : s);
+      return [...prev, { week, dayOfWeek: dow, isRestDay: true, label: '休息日', templateId: '' }];
+    });
+  };
+  const updateTemplate = (week, dow, templateId) => {
+    const tmpl = templates.find(t => t._id === templateId);
+    setSchedule(prev => prev.map(s => s.week === week && s.dayOfWeek === dow ? { ...s, templateId, label: tmpl?.name || '', isRestDay: false } : s));
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-card wide" onClick={e => e.stopPropagation()}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+          <h3 style={{ margin:0 }}>创建训练计划</h3>
+          <button className="secondary" onClick={onClose} style={{ padding:'6px 14px', fontSize:13 }}>关闭</button>
+        </div>
+        <label>计划名称</label>
+        <input type="text" placeholder="如：8周增肌计划" value={name} onChange={e => setName(e.target.value)} />
+        <label>总周数</label>
+        <input type="number" min="1" max="52" value={weeks} onChange={e => setWeeks(parseInt(e.target.value)||4)} />
+        <div style={{ fontSize:12, color:'var(--text-3)', marginBottom:12 }}>点击日期添加训练，再次点击切换模板</div>
+        <div style={{ maxHeight:'40vh', overflowY:'auto', marginBottom:16 }}>
+          {Array.from({ length: Math.min(weeks, 12) }).map((_, w) => (
+            <div key={w} style={{ marginBottom:12 }}>
+              <div style={{ fontSize:12, fontWeight:700, marginBottom:4, color:'var(--text-2)' }}>第 {w+1} 周</div>
+              <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
+                {dayNames.map((d, dow) => {
+                  const entry = schedule.find(s => s.week === w && s.dayOfWeek === dow);
+                  const isActive = !!entry;
+                  const isRest = entry?.isRestDay;
+                  return (
+                    <div key={dow} style={{ display:'flex', flexDirection:'column', gap:2 }}>
+                      <div onClick={() => !isRest && toggleDay(w, dow)} onContextMenu={e => { e.preventDefault(); setRestDay(w, dow); }}
+                        style={{ padding:'6px 10px', borderRadius:8, fontSize:11, fontWeight:600, cursor:'pointer', textAlign:'center', minWidth:50,
+                          background: isRest ? 'rgba(255,159,10,.12)' : isActive ? 'var(--c-blue-dim)' : 'var(--surface-3)',
+                          color: isRest ? '#b86800' : isActive ? 'var(--c-blue)' : 'var(--text-4)',
+                          border: isActive ? '1px solid rgba(0,113,227,.2)' : '1px solid transparent' }}>
+                        {d.replace('周','')}<br/>{isRest ? '💤' : isActive ? '🏋️' : '—'}
+                      </div>
+                      {isActive && !isRest && templates.length > 0 && (
+                        <select value={entry.templateId} onChange={e => updateTemplate(w, dow, e.target.value)} style={{ fontSize:10, padding:'2px', borderRadius:4, border:'1px solid var(--border)' }}>
+                          {templates.map(t => <option key={t._id} value={t._id}>{t.name}</option>)}
+                        </select>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize:11, color:'var(--text-4)', marginBottom:12 }}>提示：右键/长按标记休息日</div>
+        <button disabled={!name.trim() || schedule.length === 0} onClick={() => onSave({ name, weeks, schedule })} style={{ width:'100%' }}>创建计划</button>
+      </div>
+    </div>
+  );
+};
+
 // ─── 主 Dashboard ─────────────────────────────────────────────────────────────
 const Dashboard = () => {
   const { token, user, logout } = useContext(AuthContext);
@@ -436,6 +565,9 @@ const Dashboard = () => {
   const [todayPlan, setTodayPlan]       = useState([]);
   const [userProfile, setUserProfile]   = useState(null);
   const [loading, setLoading]           = useState(true);
+  const [muscleHeatmap, setMuscleHeatmap] = useState(null);
+  const [muscleVolume, setMuscleVolume]   = useState(null);
+  const [trainingPlans, setTrainingPlans] = useState([]);
 
   const [period, setPeriod]             = useState('all');
   const [activeTab, setActiveTab]       = useState('overview');
@@ -447,23 +579,33 @@ const Dashboard = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   // { type: 'workout'|'set'|'bwEntry', id, setIndex?, label, desc }
 
+  // 编辑模式
+  const [editWorkout, setEditWorkout] = useState(null);
+  // { _id, exercise, sets:[...] }
+
   const fetchAll = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     try {
-      const [wRes, sRes, prRes, insRes, bwRes, profRes] = await Promise.all([
+      const [wRes, sRes, prRes, insRes, bwRes, profRes, mhRes, mvRes, tpRes] = await Promise.all([
         fetch(`${API_URL}/api/workouts?period=${period}`, { headers: { 'x-auth-token': token } }),
         fetch(`${API_URL}/api/workouts/stats`,            { headers: { 'x-auth-token': token } }),
         fetch(`${API_URL}/api/workouts/pr`,               { headers: { 'x-auth-token': token } }),
         fetch(`${API_URL}/api/workouts/insights`,         { headers: { 'x-auth-token': token } }),
         fetch(`${API_URL}/api/workouts/body-weight`,      { headers: { 'x-auth-token': token } }),
         fetch(`${API_URL}/api/workouts/profile`,          { headers: { 'x-auth-token': token } }),
+        fetch(`${API_URL}/api/workouts/muscle-heatmap?period=${period}`, { headers: { 'x-auth-token': token } }),
+        fetch(`${API_URL}/api/workouts/muscle-volume?weeks=4`,           { headers: { 'x-auth-token': token } }),
+        fetch(`${API_URL}/api/workouts/training-plans`,                   { headers: { 'x-auth-token': token } }),
       ]);
       if (wRes.ok)    setWorkouts(await wRes.json());
       if (sRes.ok)    setStats(await sRes.json());
       if (prRes.ok)   setPrs(await prRes.json());
       if (insRes.ok)  setInsights(await insRes.json());
       if (bwRes.ok)   setBWLog(await bwRes.json());
+      if (mhRes.ok)   setMuscleHeatmap(await mhRes.json());
+      if (mvRes.ok)   setMuscleVolume(await mvRes.json());
+      if (tpRes.ok)   setTrainingPlans(await tpRes.json());
       if (profRes.ok) {
         const p = await profRes.json();
         setTemplates(p.templates || []);
@@ -536,6 +678,47 @@ const Dashboard = () => {
     } catch (e) { console.error(e); }
   };
 
+  // ── 编辑训练记录
+  const handleSaveEdit = async (overrideSets) => {
+    const setsToSave = overrideSets || editWorkout?.sets;
+    if (!editWorkout || !setsToSave) return;
+    try {
+      const res = await fetch(`${API_URL}/api/workouts/${editWorkout._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body: JSON.stringify({ sets: setsToSave.map(({ idx, ...s }) => s) }),
+      });
+      if (res.ok) { setEditWorkout(null); fetchAll(); }
+    } catch (e) { console.error(e); }
+  };
+
+  // ── 数据导出
+  const handleExport = (format) => {
+    const url = `${API_URL}/api/workouts/export?format=${format}`;
+    fetch(url, { headers: { 'x-auth-token': token } })
+      .then(r => r.blob())
+      .then(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `fitness_data.${format}`;
+        a.click();
+      })
+      .catch(() => alert('导出失败'));
+  };
+
+  // ── 创建训练计划
+  const [showCreatePlan, setShowCreatePlan] = useState(false);
+  const handleCreatePlan = async (data) => {
+    try {
+      const res = await fetch(`${API_URL}/api/workouts/training-plans`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) { setShowCreatePlan(false); fetchAll(); }
+    } catch (e) { console.error(e); }
+  };
+
   // ── 数据处理 ──
   const allActiveDates = workouts.map(w => toLocalDateStr(w.date));
 
@@ -574,6 +757,8 @@ const Dashboard = () => {
     { key: 'templates', label: '模板',  icon: '⚡' },
     { key: 'pr',        label: '纪录',  icon: '🏆' },
     { key: 'body',      label: '体重',  icon: '⚖️' },
+    { key: 'muscles',   label: '肌群',  icon: '💪' },
+    { key: 'plans',     label: '计划',  icon: '📅' },
   ];
 
   // 渲染各 Tab 内容
@@ -725,11 +910,15 @@ const Dashboard = () => {
       // ═══ 历史 ═══
       case 'history': return (
         <div style={{ maxWidth: 'var(--max-w)', margin: '0 auto', padding: '0 12px 20px' }}>
-          {/* 筛选 */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          {/* 筛选 + 导出 */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
             {[{k:'week',l:'7天'},{k:'month',l:'30天'},{k:'all',l:'全部'}].map(p => (
               <button key={p.k} onClick={() => setPeriod(p.k)} style={{ padding: '8px 16px', fontSize: 13, fontWeight: 600, borderRadius: 99, background: period===p.k?'var(--text-1)':'var(--surface-3)', color: period===p.k?'#fff':'var(--text-2)', border: 'none' }}>{p.l}</button>
             ))}
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+              <button onClick={() => handleExport('csv')} style={{ padding: '8px 12px', fontSize: 11, fontWeight: 600, borderRadius: 99, background: 'var(--surface-3)', color: 'var(--text-3)', border: 'none', cursor: 'pointer' }}>📥 CSV</button>
+              <button onClick={() => handleExport('json')} style={{ padding: '8px 12px', fontSize: 11, fontWeight: 600, borderRadius: 99, background: 'var(--surface-3)', color: 'var(--text-3)', border: 'none', cursor: 'pointer' }}>📥 JSON</button>
+            </div>
           </div>
 
           {/* 趋势图 */}
@@ -785,16 +974,22 @@ const Dashboard = () => {
                           <div style={{ position:'absolute', left:0, top:0, bottom:0, width:3, background:w.type==='cardio'?'var(--c-orange)':'var(--c-blue)', borderRadius:'3px 0 0 3px' }} />
                           <div style={{ paddingLeft:10 }}>
                             {/* 头部 */}
-                            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
                               <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                                 <span style={{ fontSize:14, fontWeight:700 }}>{w.exercise}</span>
                                 {w.type==='cardio' && <span style={{ fontSize:9, fontWeight:800, color:'var(--c-orange)', background:'var(--c-orange-dim)', padding:'2px 7px', borderRadius:99, textTransform:'uppercase', letterSpacing:'0.04em' }}>有氧</span>}
                               </div>
-                              {/* 桌面端删除按钮（移动端用左滑） */}
-                              <button
-                                onClick={() => setDeleteTarget({ type:'workout', id:w._id, label:`删除「${w.exercise}」`, desc:'将删除该动作的全部组数，无法撤销。' })}
-                                style={{ background:'none', border:'none', color:'var(--text-4)', fontSize:18, padding:'2px 4px', cursor:'pointer', lineHeight:1, borderRadius:6 }}
-                              >×</button>
+                              <div style={{ display:'flex', gap:4, alignItems:'center' }}>
+                                {w.duration > 0 && <span style={{ fontSize:10, fontWeight:700, color:'var(--c-purple)', background:'rgba(94,92,230,.1)', padding:'2px 8px', borderRadius:99 }}>{Math.round(w.duration/60)}分钟</span>}
+                                <button
+                                  onClick={() => setEditWorkout({ _id: w._id, exercise: w.exercise, type: w.type, sets: w.sets.map((s,i) => ({...s, idx: i})) })}
+                                  style={{ background:'none', border:'none', color:'var(--c-blue)', fontSize:12, fontWeight:600, padding:'2px 6px', cursor:'pointer', borderRadius:4 }}
+                                >编辑</button>
+                                <button
+                                  onClick={() => setDeleteTarget({ type:'workout', id:w._id, label:`删除「${w.exercise}」`, desc:'将删除该动作的全部组数，无法撤销。' })}
+                                  style={{ background:'none', border:'none', color:'var(--text-4)', fontSize:18, padding:'2px 4px', cursor:'pointer', lineHeight:1, borderRadius:6 }}
+                                >×</button>
+                              </div>
                             </div>
 
                              {/* 组数列表 */}
@@ -918,6 +1113,129 @@ const Dashboard = () => {
         </div>
       );
 
+      // ═══ 肌群分析 ═══
+      case 'muscles': return (
+        <div style={{ maxWidth:'var(--max-w)', margin:'0 auto', padding:'0 12px 20px' }}>
+          {/* 肌群热力图 */}
+          {muscleHeatmap && (
+            <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r-xl)', padding:'16px', marginBottom:16 }}>
+              <div style={{ fontSize:11, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>肌群热力图</div>
+              <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                {Object.entries(muscleHeatmap.muscles || {}).sort((a,b) => b[1] - a[1]).map(([muscle, count]) => {
+                  const intensity = Math.min(1, count / (muscleHeatmap.max * 0.7));
+                  const r = Math.round(232 * intensity + 240 * (1-intensity));
+                  const g = Math.round(64 * intensity + 240 * (1-intensity));
+                  const b2 = Math.round(64 * intensity + 240 * (1-intensity));
+                  return (
+                    <div key={muscle} style={{ padding:'8px 12px', borderRadius:10, fontSize:12, fontWeight:700, background:`rgba(${Math.round(0+220*(1-intensity))},${Math.round(100*intensity+200*(1-intensity))},${Math.round(80*intensity+220*(1-intensity))},${0.15+intensity*0.35})`, color:`rgb(${Math.round(30+50*intensity)},${Math.round(80*intensity+120*(1-intensity))},${Math.round(50*intensity+120*(1-intensity))})` }}>
+                      {muscle} <span style={{ opacity:0.7 }}>{count}组</span>
+                    </div>
+                  );
+                })}
+                {Object.keys(muscleHeatmap.muscles || {}).length === 0 && <div style={{ fontSize:13, color:'var(--text-3)', padding:'20px 0', width:'100%', textAlign:'center' }}>暂无训练数据</div>}
+              </div>
+            </div>
+          )}
+
+          {/* 肌群训练量柱状图 */}
+          {muscleVolume && Object.keys(muscleVolume.muscles || {}).length > 0 && (
+            <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r-xl)', padding:'16px' }}>
+              <div style={{ fontSize:11, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>近4周训练量（组数）</div>
+              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                {Object.entries(muscleVolume.muscles).sort((a,b) => {
+                  const aTotal = a[1].reduce((x,y)=>x+y,0);
+                  const bTotal = b[1].reduce((x,y)=>x+y,0);
+                  return bTotal - aTotal;
+                }).map(([muscle, weekly]) => {
+                  const total = weekly.reduce((a,b)=>a+b,0);
+                  const maxWeek = Math.max(...weekly, 1);
+                  const gl = muscleVolume.guidelines?.[muscle];
+                  return (
+                    <div key={muscle}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
+                        <span style={{ fontSize:13, fontWeight:700 }}>{muscle}</span>
+                        <span style={{ fontSize:11, color:'var(--text-3)' }}>{total}组/4周 · 最近{weekly[weekly.length-1]}组</span>
+                      </div>
+                      <div style={{ display:'flex', gap:3 }}>
+                        {weekly.map((count, i) => {
+                          const pct = Math.min(100, (count / (gl?.mrv || 20)) * 100);
+                          const overMev = !gl || count >= gl.mev;
+                          const overMrv = gl && count >= gl.mrv;
+                          return (
+                            <div key={i} style={{ flex:1, height:20, borderRadius:4, background: overMrv ? 'rgba(255,59,48,.15)' : overMev ? 'rgba(52,199,89,.12)' : 'var(--surface-3)', position:'relative', overflow:'hidden' }}>
+                              <div style={{ position:'absolute', bottom:0, left:0, right:0, height:`${pct}%`, background: overMrv ? 'rgba(255,59,48,.4)' : overMev ? 'rgba(52,199,89,.35)' : 'rgba(0,113,227,.2)', borderRadius:4, transition:'height .5s' }} />
+                              <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:700, color:'var(--text-3)' }}>{count}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {gl && <div style={{ display:'flex', justifyContent:'space-between', fontSize:9, color:'var(--text-4)', marginTop:2 }}><span>MEV {gl.mev}</span><span>MRV {gl.mrv}</span></div>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {(!muscleHeatmap || Object.keys(muscleHeatmap.muscles || {}).length === 0) && (
+            <div style={{ textAlign:'center', padding:'48px 20px', color:'var(--text-3)' }}>
+              <div style={{ fontSize:44, marginBottom:12 }}>💪</div>
+              <div style={{ fontSize:16, fontWeight:600, color:'var(--text-1)', marginBottom:6 }}>开始训练以查看肌群分析</div>
+              <div style={{ fontSize:13 }}>训练后自动统计各肌群训练量</div>
+            </div>
+          )}
+        </div>
+      );
+
+      // ═══ 训练计划 ═══
+      case 'plans': return (
+        <div style={{ maxWidth:'var(--max-w)', margin:'0 auto', padding:'0 12px 20px' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+            <span style={{ fontSize:15, fontWeight:700 }}>多周训练计划</span>
+          </div>
+          {trainingPlans.length === 0 ? (
+            <div style={{ textAlign:'center', padding:'48px 20px', color:'var(--text-3)' }}>
+              <div style={{ fontSize:44, marginBottom:12 }}>📅</div>
+              <div style={{ fontSize:16, fontWeight:600, color:'var(--text-1)', marginBottom:6 }}>暂无训练计划</div>
+              <div style={{ fontSize:13, marginBottom:20 }}>创建多周结构化计划，系统化提升</div>
+              <button onClick={() => navigate('/add')} style={{ padding:'11px 24px' }}>先去创建模板</button>
+            </div>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {trainingPlans.map(plan => {
+                const startDate = new Date(plan.startDate);
+                const now = new Date();
+                const currentWeek = Math.min(plan.weeks - 1, Math.floor((now - startDate) / (7 * 86400000)));
+                const pct = Math.round(((currentWeek + 1) / plan.weeks) * 100);
+                return (
+                  <SwipeToDeleteRow key={plan._id} onDelete={() => {
+                    fetch(`${API_URL}/api/workouts/training-plans/${plan._id}`, { method:'DELETE', headers:{ 'x-auth-token': token } }).then(() => fetchAll());
+                  }} deleteLabel="删除">
+                    <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r-l)', padding:'14px 16px' }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                        <div style={{ fontSize:15, fontWeight:700 }}>{plan.name}</div>
+                        <span style={{ fontSize:11, fontWeight:700, padding:'3px 10px', borderRadius:99, background: plan.isActive ? 'rgba(52,199,89,.12)' : 'var(--surface-3)', color: plan.isActive ? '#34c759' : 'var(--text-4)' }}>{plan.isActive ? '进行中' : '已完成'}</span>
+                      </div>
+                      <div style={{ fontSize:12, color:'var(--text-3)', marginBottom:8 }}>{plan.weeks} 周 · {plan.schedule?.length || 0} 个训练日 · 开始于 {startDate.toLocaleDateString('zh-CN')}</div>
+                      <div style={{ height:6, background:'var(--surface-3)', borderRadius:99, overflow:'hidden', marginBottom:4 }}>
+                        <div style={{ width:`${pct}%`, height:'100%', background:'linear-gradient(90deg,var(--c-blue),var(--c-indigo))', borderRadius:99, transition:'width .5s' }} />
+                      </div>
+                      <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'var(--text-4)' }}>
+                        <span>第 {currentWeek + 1} / {plan.weeks} 周</span>
+                        <span>{pct}%</span>
+                      </div>
+                    </div>
+                  </SwipeToDeleteRow>
+                );
+              })}
+              <button onClick={() => setShowCreatePlan(true)} style={{ border:'1.5px dashed var(--border)', background:'transparent', color:'var(--text-3)', padding:'14px', fontSize:14, fontWeight:600, borderRadius:'var(--r-l)', marginTop:4 }}>
+                + 新建计划
+              </button>
+            </div>
+          )}
+        </div>
+      );
+
       default: return null;
     }
   };
@@ -954,41 +1272,43 @@ const Dashboard = () => {
       {/* ── Tab 内容 ── */}
       {renderTabContent()}
 
-      {/* ── 底部 Tab Bar（移动端） ── */}
-      <div className="bottom-tab-bar">
-        {/* 总览 */}
-        <div className={`tab-item ${activeTab==='overview'?'active':''}`} onClick={() => setActiveTab('overview')}>
-          <span className="tab-icon">⊞</span>
-          <span className="tab-label">总览</span>
-        </div>
-        {/* 历史 */}
-        <div className={`tab-item ${activeTab==='history'?'active':''}`} onClick={() => setActiveTab('history')}>
-          <span className="tab-icon">📋</span>
-          <span className="tab-label">历史</span>
-        </div>
-        {/* 中间大按钮（记录） */}
-        <div className="tab-item tab-cta">
-          <Link to="/add" style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4, textDecoration:'none' }}>
-            <div className="tab-cta-btn">＋</div>
-            <span className="tab-label" style={{ color:'var(--c-blue)' }}>记录</span>
-          </Link>
-        </div>
-        {/* 纪录 */}
-        <div className={`tab-item ${activeTab==='pr'?'active':''}`} onClick={() => setActiveTab('pr')}>
-          <span className="tab-icon">🏆</span>
-          <span className="tab-label">纪录</span>
-        </div>
-        {/* 我的（设置入口） */}
-        <div className="tab-item" onClick={() => setShowProfile(true)}>
-          <span className="tab-icon">👤</span>
-          <span className="tab-label">我的</span>
-        </div>
-      </div>
+       {/* ── 底部 Tab Bar（移动端） ── */}
+       <div className="bottom-tab-bar">
+         {/* 总览 */}
+         <div className={`tab-item ${activeTab==='overview'?'active':''}`} onClick={() => setActiveTab('overview')}>
+           <span className="tab-icon">⊞</span>
+           <span className="tab-label">总览</span>
+         </div>
+         {/* 历史 */}
+         <div className={`tab-item ${activeTab==='history'?'active':''}`} onClick={() => setActiveTab('history')}>
+           <span className="tab-icon">📋</span>
+           <span className="tab-label">历史</span>
+         </div>
+         {/* 中间大按钮（记录） */}
+         <div className="tab-item tab-cta">
+           <Link to="/add" style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4, textDecoration:'none' }}>
+             <div className="tab-cta-btn">＋</div>
+             <span className="tab-label" style={{ color:'var(--c-blue)' }}>记录</span>
+           </Link>
+         </div>
+         {/* 肌群 */}
+         <div className={`tab-item ${activeTab==='muscles'?'active':''}`} onClick={() => setActiveTab('muscles')}>
+           <span className="tab-icon">💪</span>
+           <span className="tab-label">肌群</span>
+         </div>
+         {/* 我的（设置入口） */}
+         <div className="tab-item" onClick={() => setShowProfile(true)}>
+           <span className="tab-icon">👤</span>
+           <span className="tab-label">我的</span>
+         </div>
+       </div>
 
       {/* ── Modals ── */}
       {progressExercise && <ProgressModal exercise={progressExercise} onClose={() => setProgressExercise(null)} token={token} />}
       {showBWModal && <BodyWeightModal onClose={() => setShowBWModal(false)} onSave={handleSaveBW} />}
       {showProfile && <ProfileModal onClose={() => setShowProfile(false)} onSave={handleSaveProfile} onLogout={logout} currentProfile={userProfile} />}
+      {editWorkout && <EditWorkoutModal workout={editWorkout} onClose={() => setEditWorkout(null)} onSave={(newSets) => handleSaveEdit(newSets)} />}
+      {showCreatePlan && <CreatePlanModal templates={templates} onClose={() => setShowCreatePlan(false)} onSave={handleCreatePlan} />}
 
       {/* ── 删除确认 Sheet ── */}
       {deleteTarget && (

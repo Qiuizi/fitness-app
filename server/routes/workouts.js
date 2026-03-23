@@ -29,6 +29,59 @@ const calc1RM = (weight, reps) => {
   return Math.round(weight * (1 + reps / 30) * 10) / 10;
 };
 
+// ─── 动作→肌肉群映射 ───────────────────────────────────────────────────────
+const EXERCISE_MUSCLE_MAP = {
+  '杠铃卧推':['胸','肩前束'],'哑铃卧推':['胸','肩前束'],'上斜杠铃卧推':['胸','肩前束'],'上斜哑铃推举':['肩前束','胸'],
+  '下斜杠铃卧推':['胸'],'哑铃飞鸟':['胸'],'上斜哑铃飞鸟':['胸'],'下斜哑铃飞鸟':['胸'],
+  '绳索夹胸':['胸'],'绳索飞鸟':['胸'],'俯卧撑':['胸','三头'],'宽距俯卧撑':['胸'],'钻石俯卧撑':['三头','胸'],
+  '双杠臂屈伸（胸）':['胸','三头'],'史密斯卧推':['胸','肩前束'],'蝴蝶机夹胸':['胸'],'龙门架夹胸':['胸'],
+  '下斜绳索飞鸟':['胸'],'弹力带卧推':['胸'],'悬吊俯卧撑':['胸','核心'],
+
+  '引体向上':['背','二头'],'反握引体向上':['背','二头'],'宽握引体向上':['背'],'中握引体向上':['背','二头'],
+  '高位下拉':['背'],'反握高位下拉':['背','二头'],'中立握高位下拉':['背'],
+  '杠铃划船':['背','后束'],'坐姿划船':['背'],'T型划船':['背'],'单臂哑铃划船':['背'],'绳索划船':['背'],
+  '硬拉':['背','腿','臀'],'直腿硬拉':['臀','腿后侧'],'早安式硬拉':['背','臀'],'绳索直臂下压':['背'],
+  '直立划船':['肩','背'],'杠铃耸肩':['斜方肌'],'哑铃耸肩':['斜方肌'],'面拉':['后束','背'],
+  '俯身飞鸟':['后束'],'反向飞鸟':['后束'],'史密斯划船':['背'],'悬吊划船':['背'],'背部伸展':['背'],
+
+  '深蹲':['股四','臀','核心'],'前蹲':['股四','核心'],'哈克深蹲':['股四'],'史密斯深蹲':['股四'],
+  '相扑深蹲':['腿内侧','股四'],'壶铃深蹲':['股四','臀'],
+  '腿举':['股四','臀'],'腿屈伸':['股四'],'腿弯举（坐姿）':['腿后侧'],'腿弯举（俯卧）':['腿后侧'],
+  '罗马尼亚硬拉':['腿后侧','臀'],'保加利亚分腿蹲':['股四','臀'],'弓步蹲':['股四','臀'],'行走弓步':['股四','臀'],
+  '提踵（坐姿）':['小腿'],'提踵（站姿）':['小腿'],'单腿提踵':['小腿'],
+  '臀桥':['臀'],'负重臀桥':['臀'],'单腿臀桥':['臀'],'髋关节伸展':['臀'],
+  '腿外展机':['腿内侧'],'腿内收机':['腿内侧'],'侧卧抬腿':['臀'],'消防栓':['臀'],
+
+  '杠铃推举':['肩前束','三头'],'哑铃肩推':['肩前束','三头'],'阿诺德推举':['肩前束'],'史密斯推举':['肩前束'],
+  '哑铃侧平举':['肩中束'],'绳索侧平举':['肩中束'],'单臂绳索侧平举':['肩中束'],
+  '哑铃前平举':['肩前束'],'绳索前平举':['肩前束'],'杠铃前平举':['肩前束'],
+  '绳索面拉':['后束','背'],'杠铃直立划船':['肩','斜方肌'],'哑铃直立划船':['肩'],
+  '俯身哑铃飞鸟':['后束'],'绳索后束拉':['后束'],'反向蝴蝶机':['后束'],
+  '弹力带肩推':['肩前束'],'哑铃耸肩（斜方肌）':['斜方肌'],
+
+  '杠铃弯举':['二头'],'哑铃弯举':['二头'],'锤式弯举':['二头','前臂'],'绳索弯举':['二头'],
+  '上斜哑铃弯举':['二头'],'集中弯举':['二头'],'蜘蛛弯举':['二头'],'反握弯举':['前臂','二头'],
+  '对握弯举':['二头'],'弹力带弯举':['二头'],
+  '三头绳索下压':['三头'],'绳索过头伸展':['三头'],'仰卧臂屈伸':['三头'],
+  '双杠臂屈伸（三头）':['三头'],'哑铃过头臂屈伸':['三头'],'单臂绳索下压':['三头'],
+  '窄距卧推':['三头','胸'],'下斜臂屈伸':['三头'],'椅子撑体':['三头'],
+  '腕弯举':['前臂'],'反握腕弯举':['前臂'],'握力训练':['前臂'],
+
+  '卷腹':['腹直肌'],'仰卧起坐':['腹直肌'],'反向卷腹':['腹直肌'],'自行车卷腹':['腹直肌','腹斜肌'],'V字起坐':['腹直肌'],
+  '平板支撑':['核心'],'侧平板':['腹斜肌'],'侧平板旋转':['腹斜肌'],'RKC平板':['核心'],
+  '悬垂举腿':['腹直肌'],'悬垂屈膝举腿':['腹直肌'],'仰卧举腿':['腹直肌'],'直腿上举':['腹直肌'],
+  '俄罗斯挺身':['腹斜肌'],'木桩式转体':['腹斜肌'],'绳索卷腹':['腹直肌'],'绳索旋转':['腹斜肌'],
+  '山地爬行':['核心'],'滚轮卷腹':['腹直肌'],'药球砸地':['核心'],'死虫式':['核心'],
+  '鸟狗式':['核心'],'麦克罗伊卷腹':['腹直肌'],'Pallof推举':['核心'],
+
+  '弹力带臀桥':['臀'],'深蹲（臀向后）':['臀','股四'],'蚌式训练':['臀中肌'],'侧卧蚌式':['臀中肌'],
+  '站姿髋外展':['臀中肌'],'绳索臀部后踢':['臀'],'站姿臀部外展':['臀中肌'],'俯卧臀部后踢':['臀'],
+  '弹力带侧走':['臀中肌'],'臀冲':['臀'],'反向弓步':['臀','股四'],
+};
+
+// 所有肌群列表
+const ALL_MUSCLE_GROUPS = [...new Set(Object.values(EXERCISE_MUSCLE_MAP).flat())];
+
 const calcStreak = (workouts) => {
   if (!workouts.length) return 0;
   const days = new Set(workouts.map(w => toDateStr(w.date)));
@@ -555,6 +608,208 @@ router.put('/profile', auth, async (req, res) => {
     if (req.body.weeklyPlan) user.weeklyPlan = req.body.weeklyPlan;
     await user.save();
     res.json({ profile: user.profile, weeklyPlan: user.weeklyPlan });
+  } catch { res.status(500).send('Server Error'); }
+});
+
+// ─── 肌群分析 ─────────────────────────────────────────────────────────────────
+
+// GET /api/workouts/muscle-heatmap?period=week|month|all
+router.get('/muscle-heatmap', auth, async (req, res) => {
+  try {
+    const { period } = req.query;
+    let filter = { user: req.user.id, type: 'strength' };
+    if (period === 'week') {
+      const d = new Date(); d.setDate(d.getDate() - 7);
+      filter.date = { $gte: d };
+    } else if (period === 'month') {
+      const d = new Date(); d.setMonth(d.getMonth() - 1);
+      filter.date = { $gte: d };
+    }
+    const workouts = await Workout.find(filter);
+    const muscleCount = {};
+    for (const w of workouts) {
+      const muscles = EXERCISE_MUSCLE_MAP[w.exercise] || [];
+      const sets = w.sets.filter(s => !s.isWarmup).length || w.sets.length;
+      for (const m of muscles) {
+        muscleCount[m] = (muscleCount[m] || 0) + sets;
+      }
+    }
+    res.json({ muscles: muscleCount, max: Math.max(...Object.values(muscleCount), 1) });
+  } catch (e) { console.error(e); res.status(500).send('Server Error'); }
+});
+
+// GET /api/workouts/muscle-volume?weeks=4
+router.get('/muscle-volume', auth, async (req, res) => {
+  try {
+    const weeks = parseInt(req.query.weeks) || 4;
+    const workouts = await Workout.find({ user: req.user.id, type: 'strength' }).sort({ date: -1 });
+    const now = new Date();
+    const result = {};
+    for (const m of ALL_MUSCLE_GROUPS) result[m] = new Array(weeks).fill(0);
+
+    for (const w of workouts) {
+      const muscles = EXERCISE_MUSCLE_MAP[w.exercise] || [];
+      const d = new Date(w.date);
+      const diffWeeks = Math.floor((now - d) / (7 * 86400000));
+      if (diffWeeks >= weeks) continue;
+      const weekIdx = weeks - 1 - diffWeeks;
+      const workingSets = w.sets.filter(s => !s.isWarmup).length || w.sets.length;
+      for (const m of muscles) {
+        result[m][weekIdx] += workingSets;
+      }
+    }
+    // 只返回有训练记录的肌群
+    const filtered = {};
+    for (const [m, v] of Object.entries(result)) {
+      if (v.some(x => x > 0)) filtered[m] = v;
+    }
+    // MEV/MRV 参考值 (每周组数)
+    const guidelines = {
+      '胸': { mev: 8, mrv: 20 }, '背': { mev: 8, mrv: 22 }, '股四': { mev: 6, mrv: 18 },
+      '臀': { mev: 4, mrv: 16 }, '肩前束': { mev: 6, mrv: 18 }, '肩中束': { mev: 6, mrv: 22 },
+      '后束': { mev: 6, mrv: 18 }, '二头': { mev: 4, mrv: 18 }, '三头': { mev: 4, mrv: 16 },
+      '腹直肌': { mev: 4, mrv: 18 }, '腹斜肌': { mev: 4, mrv: 12 }, '核心': { mev: 4, mrv: 16 },
+      '腿后侧': { mev: 4, mrv: 14 }, '小腿': { mev: 6, mrv: 16 }, '斜方肌': { mev: 4, mrv: 14 },
+      '前臂': { mev: 2, mrv: 12 }, '腿内侧': { mev: 3, mrv: 12 }, '臀中肌': { mev: 3, mrv: 14 },
+    };
+    res.json({ muscles: filtered, guidelines, weeks });
+  } catch (e) { console.error(e); res.status(500).send('Server Error'); }
+});
+
+// ─── 训练编辑 ─────────────────────────────────────────────────────────────────
+
+// PUT /api/workouts/:id — 编辑训练记录
+router.put('/:id', auth, async (req, res) => {
+  try {
+    const w = await Workout.findById(req.params.id);
+    if (!w) return res.status(404).json({ msg: 'Not found' });
+    if (w.user.toString() !== req.user.id) return res.status(401).json({ msg: 'Unauthorized' });
+    const { sets, exercise, notes, duration } = req.body;
+    if (sets) w.sets = sets;
+    if (exercise) w.exercise = exercise;
+    if (notes !== undefined) w.notes = notes;
+    if (duration !== undefined) w.duration = duration;
+    await w.save();
+    res.json(w);
+  } catch { res.status(500).send('Server Error'); }
+});
+
+// PUT /api/workouts/:id/set/:setIndex — 编辑单组数据
+router.put('/:id/set/:setIndex', auth, async (req, res) => {
+  try {
+    const w = await Workout.findById(req.params.id);
+    if (!w) return res.status(404).json({ msg: 'Not found' });
+    if (w.user.toString() !== req.user.id) return res.status(401).json({ msg: 'Unauthorized' });
+    const idx = parseInt(req.params.setIndex);
+    if (idx < 0 || idx >= w.sets.length) return res.status(400).json({ msg: 'Invalid set index' });
+    const { weight, reps, isWarmup, rpe } = req.body;
+    if (weight !== undefined) w.sets[idx].weight = weight;
+    if (reps !== undefined) w.sets[idx].reps = reps;
+    if (isWarmup !== undefined) w.sets[idx].isWarmup = isWarmup;
+    if (rpe !== undefined) w.sets[idx].rpe = rpe;
+    await w.save();
+    res.json(w);
+  } catch { res.status(500).send('Server Error'); }
+});
+
+// ─── 数据导出 ─────────────────────────────────────────────────────────────────
+
+// GET /api/workouts/export?format=csv|json
+router.get('/export', auth, async (req, res) => {
+  try {
+    const workouts = await Workout.find({ user: req.user.id }).sort({ date: 1 });
+    if (req.query.format === 'csv') {
+      const lines = ['日期,动作,类型,组号,重量(kg),次数,热身,RPE,训练时长(秒),备注'];
+      for (const w of workouts) {
+        w.sets.forEach((s, i) => {
+          lines.push(`${new Date(w.date).toISOString().split('T')[0]},${w.exercise},${w.type},${i+1},${s.weight||0},${s.reps||0},${s.isWarmup?'是':'否'},${s.rpe||''},${w.duration||0},${w.notes||''}`);
+        });
+      }
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename=fitness_data.csv');
+      res.send('\ufeff' + lines.join('\n'));
+    } else {
+      res.setHeader('Content-Disposition', 'attachment; filename=fitness_data.json');
+      res.json(workouts.map(w => ({
+        date: new Date(w.date).toISOString().split('T')[0],
+        exercise: w.exercise,
+        type: w.type,
+        sets: w.sets.map((s, i) => ({ set: i+1, weight: s.weight, reps: s.reps, isWarmup: s.isWarmup, rpe: s.rpe })),
+        duration: w.duration,
+        notes: w.notes,
+      })));
+    }
+  } catch (e) { console.error(e); res.status(500).send('Server Error'); }
+});
+
+// ─── 多周训练计划 ─────────────────────────────────────────────────────────────
+
+// GET /api/workouts/training-plans
+router.get('/training-plans', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    res.json(user?.trainingPlans || []);
+  } catch { res.status(500).send('Server Error'); }
+});
+
+// POST /api/workouts/training-plans — 创建多周计划
+router.post('/training-plans', auth, async (req, res) => {
+  const { name, weeks, schedule } = req.body;
+  if (!name || !weeks || !schedule) return res.status(400).json({ msg: 'Missing fields' });
+  try {
+    const user = await User.findById(req.user.id);
+    user.trainingPlans.push({
+      name,
+      weeks: parseInt(weeks),
+      startDate: new Date(),
+      schedule, // [{ week: 0, dayOfWeek: 1, templateId: '...', label: '推日' }, ...]
+      isActive: true,
+    });
+    await user.save();
+    res.json(user.trainingPlans);
+  } catch { res.status(500).send('Server Error'); }
+});
+
+// PUT /api/workouts/training-plans/:planId — 更新计划
+router.put('/training-plans/:planId', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    const plan = user.trainingPlans.id(req.params.planId);
+    if (!plan) return res.status(404).json({ msg: 'Plan not found' });
+    const { name, weeks, schedule, isActive } = req.body;
+    if (name) plan.name = name;
+    if (weeks) plan.weeks = parseInt(weeks);
+    if (schedule) plan.schedule = schedule;
+    if (isActive !== undefined) plan.isActive = isActive;
+    await user.save();
+    res.json(user.trainingPlans);
+  } catch { res.status(500).send('Server Error'); }
+});
+
+// DELETE /api/workouts/training-plans/:planId
+router.delete('/training-plans/:planId', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    user.trainingPlans = user.trainingPlans.filter(p => p._id.toString() !== req.params.planId);
+    await user.save();
+    res.json(user.trainingPlans);
+  } catch { res.status(500).send('Server Error'); }
+});
+
+// GET /api/workouts/training-plans/:planId/week/:weekNum — 获取指定周的训练安排
+router.get('/training-plans/:planId/week/:weekNum', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    const plan = user.trainingPlans.id(req.params.planId);
+    if (!plan) return res.status(404).json({ msg: 'Plan not found' });
+    const weekNum = parseInt(req.params.weekNum);
+    const weekSchedule = plan.schedule.filter(s => s.week === weekNum);
+    // 填充模板信息
+    const enriched = weekSchedule.map(s => {
+      const tmpl = user.templates.id(s.templateId);
+      return { ...s.toObject(), template: tmpl || null };
+    });
+    res.json({ planName: plan.name, week: weekNum, totalWeeks: plan.weeks, schedule: enriched });
   } catch { res.status(500).send('Server Error'); }
 });
 

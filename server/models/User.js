@@ -29,6 +29,21 @@ const PlanDaySchema = new mongoose.Schema({
   isRestDay: { type: Boolean, default: false },
 }, { _id: false });
 
+// 多周训练计划
+const TrainingPlanSchema = new mongoose.Schema({
+  name: { type: String, required: true },        // 如 "8周增肌计划"
+  weeks: { type: Number, required: true },       // 总周数
+  startDate: { type: Date, default: Date.now },
+  isActive: { type: Boolean, default: true },
+  schedule: [{                                  // 每周每天的安排
+    week: Number,                                // 第几周 (0-indexed)
+    dayOfWeek: Number,                           // 0=周日...6=周六
+    templateId: { type: mongoose.Schema.Types.ObjectId },
+    label: String,
+    isRestDay: { type: Boolean, default: false },
+  }],
+}, { timestamps: true });
+
 const bcrypt = require('bcryptjs');
 
 const UserSchema = new mongoose.Schema({
@@ -43,6 +58,9 @@ const UserSchema = new mongoose.Schema({
 
   // 周训练计划
   weeklyPlan: { type: [PlanDaySchema], default: [] },
+
+  // 多周训练计划
+  trainingPlans: { type: [TrainingPlanSchema], default: [] },
 
   // 用户身体数据与偏好
   profile: {
