@@ -118,8 +118,8 @@ const isCardioExercise = (ex, cat) => {
   return ['跑', '骑', '椭圆', '划船机', '跳绳', '游泳', 'HIIT', '爬楼', '踏步'].some(k => ex.includes(k));
 };
 
-// 搜索（全库，按匹配度排序）
-const searchExercises = (query) => {
+// 搜索（全库 + 自定义动作，按匹配度排序）
+const searchExercises = (query, customList) => {
   if (!query.trim()) return [];
   const q = query.trim();
   const results = [];
@@ -128,6 +128,12 @@ const searchExercises = (query) => {
       if (ex.includes(q)) results.push({ ex, cat, score: ex === q ? 200 : ex.startsWith(q) ? 150 : 100 });
     });
   });
+  // 自定义动作搜索
+  if (customList) {
+    customList.forEach(ce => {
+      if (ce.name.includes(q)) results.push({ ex: ce.name, cat: '自定义', score: ce.name === q ? 200 : ce.name.startsWith(q) ? 150 : 100 });
+    });
+  }
   // 模糊：逐字符相似度
   if (results.length < 8) {
     Object.entries(EXERCISE_LIBRARY).forEach(([cat, list]) => {
@@ -139,6 +145,15 @@ const searchExercises = (query) => {
         if (score > 8) results.push({ ex, cat, score });
       });
     });
+    if (customList) {
+      customList.forEach(ce => {
+        if (results.find(r => r.ex === ce.name)) return;
+        let sim = 0;
+        for (let i = 0; i < Math.min(q.length, ce.name.length); i++) { if (q[i] === ce.name[i]) sim++; }
+        const score = (sim / Math.max(q.length, ce.name.length)) * 60;
+        if (score > 8) results.push({ ex: ce.name, cat: '自定义', score });
+      });
+    }
   }
   return results.sort((a, b) => b.score - a.score).slice(0, 15);
 };
@@ -303,11 +318,17 @@ const SetRow = memo(({ set, index, isCardio, isBodyweight, onChange, onRemove, o
     onComplete(index, elapsed);
   }, [index, elapsed, onComplete]);
 
+  const warmupStyle = set.isWarmup ? { opacity: 0.6, borderStyle: 'dashed' } : {};
+
   return (
-    <div style={{ background: isDone ? 'rgba(52,199,89,.06)' : 'var(--surface)', border: `1.5px solid ${isDone ? 'rgba(52,199,89,.35)' : 'var(--border)'}`, borderRadius: 'var(--r-l)', padding: '12px 14px', transition: 'all .25s ease', display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div style={{ background: isDone ? 'rgba(52,199,89,.06)' : set.isWarmup ? 'rgba(255,159,10,.04)' : 'var(--surface)', border: `1.5px solid ${isDone ? 'rgba(52,199,89,.35)' : set.isWarmup ? 'rgba(255,159,10,.25)' : 'var(--border)'}`, borderRadius: 'var(--r-l)', padding: '12px 14px', transition: 'all .25s ease', display: 'flex', flexDirection: 'column', gap: 10, ...warmupStyle }}>
       {/* 顶行 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ width: 28, height: 28, borderRadius: 99, flexShrink: 0, background: isDone ? 'var(--c-green)' : 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: isDone ? '#fff' : 'var(--text-3)', transition: 'all .3s cubic-bezier(.34,1.56,.64,1)' }}>{isDone ? '✓' : index + 1}</div>
+        <div style={{ width: 28, height: 28, borderRadius: 99, flexShrink: 0, background: isDone ? 'var(--c-green)' : set.isWarmup ? 'var(--c-orange)' : 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: isDone || set.isWarmup ? '#fff' : 'var(--text-3)', transition: 'all .3s cubic-bezier(.34,1.56,.64,1)' }}>{isDone ? '✓' : set.isWarmup ? 'W' : index + 1}</div>
+
+        {!isCardio && !isDone && (
+          <button type="button" onClick={() => onChange(index, 'isWarmup', !set.isWarmup)} style={{ background: set.isWarmup ? 'var(--c-orange-dim)' : 'var(--surface-3)', color: set.isWarmup ? '#b86800' : 'var(--text-4)', border: 'none', borderRadius: 99, padding: '3px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>{set.isWarmup ? '热身' : '正式'}</button>
+        )}
 
         {!isCardio && (
           <div style={{ flex: 1 }}>
@@ -333,7 +354,7 @@ const SetRow = memo(({ set, index, isCardio, isBodyweight, onChange, onRemove, o
             <button type="button" onClick={() => onRemove(index)} style={{ background: 'none', border: 'none', color: 'var(--text-4)', fontSize: 20, padding: '0 2px', cursor: 'pointer', lineHeight: 1, flexShrink: 0 }}>×</button>
           </>
         ) : (
-          <span style={{ fontSize: 12, color: 'var(--c-green)', fontWeight: 700, flexShrink: 0 }}>已完成</span>
+          <span style={{ fontSize: 12, color: 'var(--c-green)', fontWeight: 700, flexShrink: 0 }}>{set.isWarmup ? '热身' : '已完成'}</span>
         )}
       </div>
 
@@ -373,9 +394,27 @@ const SetRow = memo(({ set, index, isCardio, isBodyweight, onChange, onRemove, o
         </div>
       )}
 
+      {/* RPE 选择行（力量训练 & 非热身组） */}
+      {!isCardio && !set.isWarmup && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: isDone ? 38 : 0 }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-4)', flexShrink: 0, minWidth: 24 }}>RPE</span>
+          <div style={{ display: 'flex', gap: 3, flex: 1 }}>
+            {[5, 6, 7, 8, 9, 10].map(v => (
+              <button key={v} type="button" onClick={() => onChange(index, 'rpe', set.rpe === v ? undefined : v)}
+                style={{ flex: 1, minWidth: 0, padding: '4px 0', borderRadius: 6, fontSize: 12, fontWeight: 800, border: 'none', cursor: 'pointer',
+                  background: set.rpe === v ? (v >= 9 ? 'rgba(255,59,48,.15)' : v >= 7 ? 'rgba(255,159,10,.15)' : 'rgba(52,199,89,.15)') : 'var(--surface-3)',
+                  color: set.rpe === v ? (v >= 9 ? '#ff3b30' : v >= 7 ? '#ff9f0a' : '#34c759') : 'var(--text-4)',
+                  transition: 'all .15s',
+                }}>{v}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {isDone && (
         <div style={{ fontSize: 14, fontWeight: 600, paddingLeft: 38, color: 'var(--text-2)' }}>
           {isCardio ? `${set.weight} 分钟` : isBodyweight ? `自重 × ${set.reps} 次` : `${set.weight} kg × ${set.reps} 次`}
+          {set.rpe && <span style={{ color: set.rpe >= 9 ? '#ff3b30' : set.rpe >= 7 ? '#ff9f0a' : '#34c759', fontSize: 11, fontWeight: 700, marginLeft: 8 }}>RPE {set.rpe}</span>}
           {set.setDuration > 0 && <span style={{ color: 'var(--text-4)', fontSize: 11, fontFamily: 'var(--font-mono)', marginLeft: 8 }}>{fmtShort(set.setDuration)}</span>}
         </div>
       )}
@@ -508,7 +547,7 @@ const AddWorkout = () => {
   const [date, setDate]                 = useState(toDay());
   const [exercise, setExercise]         = useState('');
   const [exerciseType, setExerciseType] = useState('strength');
-  const [sets, setSets]                 = useState([{ weight: '', reps: '', done: false, setDuration: 0 }]);
+  const [sets, setSets]                 = useState([{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined, isWarmup: false, rpe: undefined }]);
   const [notes, setNotes]               = useState('');
   const [completedExercises, setCompletedExercises] = useState([]);
   const [templateQueue, setTemplateQueue] = useState([]);
@@ -525,6 +564,9 @@ const AddWorkout = () => {
 
   // 能量
   const [energyLevel, setEnergyLevel] = useState(3);
+
+  // 自定义动作库
+  const [customExercises, setCustomExercises] = useState([]);
 
   // 休息计时：用 key 控制 RestTimer 组件重新挂载
   const [restKey, setRestKey]         = useState(0);
@@ -547,7 +589,7 @@ const AddWorkout = () => {
       const first = templateData.exercises[0];
       setExercise(first.exercise);
       setExerciseType(first.type || 'strength');
-      setSets(first.sets?.length ? first.sets.map(s => ({ ...s, done: false, setDuration: 0 })) : [{ weight: '', reps: '', done: false, setDuration: 0 }]);
+      setSets(first.sets?.length ? first.sets.map(s => ({ ...s, done: false, setDuration: 0, isWarmup: false, rpe: undefined })) : [{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined }]);
       setTemplateQueue(templateData.exercises.slice(1));
       loadExerciseData(first.exercise, first.type === 'cardio');
       setPhase('log');
@@ -571,6 +613,14 @@ const AddWorkout = () => {
     return () => clearTimeout(draftTimerRef.current);
   }, [phase, completedExercises, sets, exercise, notes, date, exerciseType, templateQueue, energyLevel]);
 
+  // ── 加载自定义动作库
+  useEffect(() => {
+    fetch(`${API_URL}/api/workouts/custom-exercises`, { headers: { 'x-auth-token': token } })
+      .then(r => r.ok ? r.json() : [])
+      .then(setCustomExercises)
+      .catch(() => {});
+  }, [token]);
+
   // ── 草稿恢复
   const handleRestoreDraft = useCallback(() => {
     if (!draft) return;
@@ -578,7 +628,7 @@ const AddWorkout = () => {
     setDate(draft.date || toDay());
     setExercise(draft.exercise || '');
     setExerciseType(draft.exerciseType || 'strength');
-    setSets(draft.sets || [{ weight: '', reps: '', done: false, setDuration: 0 }]);
+    setSets(draft.sets || [{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined }]);
     setNotes(draft.notes || '');
     setCompletedExercises(draft.completedExercises || []);
     setTemplateQueue(draft.templateQueue || []);
@@ -602,7 +652,7 @@ const AddWorkout = () => {
     setIsLoading(true); setSuggestion(null); setLastRecord(null);
     if (cardio) {
       const defaults = { '跑步': 30, '快走': 30, '动感单车': 45, '跳绳': 20, '游泳': 30, 'HIIT': 20, '椭圆机': 30, '划船机': 30 };
-      setSets([{ weight: defaults[ex] || 30, reps: 0, done: false, setDuration: 0 }]);
+      setSets([{ weight: defaults[ex] || 30, reps: 0, done: false, setDuration: 0, isWarmup: false, rpe: undefined }]);
       setIsLoading(false); return;
     }
     try {
@@ -613,10 +663,10 @@ const AddWorkout = () => {
       if (lastRes.ok) {
         const last = await lastRes.json();
         setLastRecord(last);
-        setSets(last?.sets?.length ? last.sets.map(s => ({ weight: s.weight, reps: s.reps, done: false, setDuration: 0 })) : [{ weight: '', reps: '', done: false, setDuration: 0 }]);
-      } else setSets([{ weight: '', reps: '', done: false, setDuration: 0 }]);
+        setSets(last?.sets?.length ? last.sets.map(s => ({ weight: s.weight, reps: s.reps, done: false, setDuration: 0, isWarmup: false, rpe: undefined })) : [{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined }]);
+      } else setSets([{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined }]);
       if (sugRes.ok) setSuggestion(await sugRes.json());
-    } catch { setSets([{ weight: '', reps: '', done: false, setDuration: 0 }]); }
+    } catch { setSets([{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined }]); }
     setIsLoading(false);
   }, [token]);
 
@@ -636,7 +686,7 @@ const AddWorkout = () => {
   }, [activeCategory, loadExerciseData]);
 
   const handleBackToSelect = useCallback(() => {
-    setSets([{ weight: '', reps: '', done: false, setDuration: 0 }]);
+    setSets([{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined }]);
     setNotes(''); setExercise(''); setSuggestion(null); setLastRecord(null);
     setPhase('select');
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -677,7 +727,7 @@ const AddWorkout = () => {
   const addSet = useCallback(() => {
     setSets(prev => {
       const last = prev[prev.length - 1];
-      return [...prev, { weight: last?.weight || '', reps: last?.reps || '', done: false, setDuration: 0 }];
+      return [...prev, { weight: last?.weight || '', reps: last?.reps || '', done: false, setDuration: 0, isWarmup: false, rpe: undefined }];
     });
   }, []);
 
@@ -696,17 +746,28 @@ const AddWorkout = () => {
   // ── 完成当前动作
   const getValidSets = useCallback(() => {
     return sets
-      .map(s => ({ weight: parseFloat(s.weight) || 0, reps: parseInt(s.reps) || 0, setDuration: s.setDuration || 0 }))
+      .map(s => ({ weight: parseFloat(s.weight) || 0, reps: parseInt(s.reps) || 0, setDuration: s.setDuration || 0, isWarmup: !!s.isWarmup, rpe: s.rpe || undefined }))
       .filter(s => exerciseType === 'cardio' ? s.weight > 0 : s.reps > 0);
   }, [sets, exerciseType]);
 
   const handleFinishExercise = useCallback(() => {
     const validSets = getValidSets();
     if (!validSets.length) { alert('请至少完成一组有效数据'); return; }
-    const record = { date, exercise, type: exerciseType, sets: validSets, notes };
+    const record = { date, exercise, type: exerciseType, sets: validSets, notes, duration: elapsedRef.current || 0 };
     setCompletedExercises(prev => [...prev, record]);
     setRestActive(false); setRestSecs(0);
     window.scrollTo({ top: 0, behavior: 'instant' });
+
+    // 如果是自定义动作，自动保存到用户自定义动作库
+    const cat = Object.keys(EXERCISE_LIBRARY).find(c => EXERCISE_LIBRARY[c].includes(exercise));
+    if (!cat && exerciseType !== 'cardio') {
+      fetch(`${API_URL}/api/workouts/custom-exercises`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body: JSON.stringify({ name: exercise, category: '自定义', type: exerciseType }),
+      }).catch(() => {});
+    }
+
     if (templateQueue.length > 0) {
       const next = templateQueue[0];
       setTemplateQueue(q => q.slice(1));
@@ -718,7 +779,7 @@ const AddWorkout = () => {
     } else {
       setPhase('done');
     }
-  }, [getValidSets, date, exercise, exerciseType, notes, templateQueue, loadExerciseData]);
+  }, [getValidSets, date, exercise, exerciseType, notes, templateQueue, loadExerciseData, token]);
 
   // ── 提交结算
   const handleEndWorkout = useCallback(async (overrideCompleted) => {
@@ -747,7 +808,7 @@ const AddWorkout = () => {
       if (!window.confirm(`复制 ${new Date(data.date).toLocaleDateString('zh-CN')} 的训练？共 ${data.exercises.length} 个动作`)) return;
       const first = data.exercises[0];
       setExercise(first.exercise); setExerciseType(first.type || 'strength');
-      setSets(first.sets.map(s => ({ weight: s.weight, reps: s.reps, done: false, setDuration: 0 })));
+      setSets(first.sets.map(s => ({ weight: s.weight, reps: s.reps, done: false, setDuration: 0, isWarmup: false, rpe: undefined })));
       setTemplateQueue(data.exercises.slice(1));
       await loadExerciseData(first.exercise, first.type === 'cardio');
       setPhase('log');
@@ -775,7 +836,7 @@ const AddWorkout = () => {
   const handleDiscardAndExit = useCallback(() => { clearDraft(); navigate('/'); }, [navigate]);
 
   // ── 搜索结果（useMemo 避免每次渲染重新计算）
-  const searchResults = useMemo(() => searchExercises(searchText), [searchText]);
+  const searchResults = useMemo(() => searchExercises(searchText, customExercises), [searchText, customExercises]);
   const filteredExercises = searchText.trim() ? searchResults.map(r => r.ex) : (EXERCISE_LIBRARY[activeCategory] || []);
 
   const isCardio = exerciseType === 'cardio';
@@ -788,7 +849,7 @@ const AddWorkout = () => {
       const w = energyLevel <= 2 ? Math.round(suggestion.suggestedWeight * 0.85 * 2) / 2 : energyLevel >= 4 ? Math.round(suggestion.suggestedWeight * 1.05 * 2) / 2 : suggestion.suggestedWeight;
       setSets(prev => prev.map(s => ({ ...s, weight: w, reps: suggestion.suggestedReps })));
     } else if (lastRecord?.sets?.length) {
-      setSets(lastRecord.sets.map(s => ({ weight: s.weight, reps: s.reps, done: false, setDuration: 0 })));
+      setSets(lastRecord.sets.map(s => ({ weight: s.weight, reps: s.reps, done: false, setDuration: 0, isWarmup: false, rpe: undefined })));
     }
   }, [suggestion, lastRecord, energyLevel]);
 
@@ -804,7 +865,7 @@ const AddWorkout = () => {
       <ExerciseDonePage
         exercise={lastEx?.exercise} sets={lastEx?.sets || []}
         completedExercises={completedExercises.slice(0, -1)}
-        onNext={() => { setSets([{ weight: '', reps: '', done: false, setDuration: 0 }]); setNotes(''); setExercise(''); setSuggestion(null); setLastRecord(null); setPhase('select'); }}
+        onNext={() => { setSets([{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined }]); setNotes(''); setExercise(''); setSuggestion(null); setLastRecord(null); setPhase('select'); }}
         onEnd={() => handleEndWorkout()}
       />
     );
@@ -909,6 +970,27 @@ const AddWorkout = () => {
           </div>
         ) : (
           <div>
+            {customExercises.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-4)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>已保存的自定义动作</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {customExercises.map(ce => (
+                    <div key={ce._id} onClick={() => handleExerciseSelect(ce.name, 'Custom')}
+                      style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-m)', padding: '12px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, transition: 'background .1s', WebkitTapHighlightColor: 'transparent' }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(0,113,227,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="var(--c-blue)" strokeWidth="2" strokeLinecap="round"/></svg>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)' }}>{ce.name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--c-blue)', fontWeight: 600 }}>{ce.type === 'cardio' ? '有氧' : '力量'}</div>
+                      </div>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="var(--text-4)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-4)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>新建自定义动作</div>
             <label>动作名称</label>
             <input type="text" placeholder="例如：保加利亚分腿蹲" value={customExercise} onChange={e => setCustomExercise(e.target.value)} onKeyDown={e => e.key === 'Enter' && customExercise.trim() && handleExerciseSelect(customExercise.trim(), 'Custom')} />
             <div style={{ display: 'flex', gap: 10 }}>
@@ -981,7 +1063,7 @@ const AddWorkout = () => {
         </div>
       </div>
 
-      {isCardio && <CardioTimer onFinish={(mins) => { if (mins > 0) setSets([{ weight: mins, reps: 0, done: false, setDuration: 0 }]); }} />}
+      {isCardio && <CardioTimer onFinish={(mins) => { if (mins > 0) setSets([{ weight: mins, reps: 0, done: false, setDuration: 0, isWarmup: false, rpe: undefined }]); }} />}
 
       {/* 上次记录 */}
       {lastRecord && !isCardio && (

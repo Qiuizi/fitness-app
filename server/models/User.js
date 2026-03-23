@@ -63,6 +63,13 @@ const UserSchema = new mongoose.Schema({
 
   // 成就
   achievements: { type: [String], default: [] },
+
+  // 自定义动作库
+  customExercises: [{
+    name: { type: String, required: true },
+    category: { type: String, default: '自定义' },
+    type: { type: String, enum: ['strength', 'cardio'], default: 'strength' },
+  }],
 }, { timestamps: true });
 
 // 密码加密中间件

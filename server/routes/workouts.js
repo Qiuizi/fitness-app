@@ -20,6 +20,15 @@ const auth = (req, res, next) => {
 
 const toDateStr = (date) => new Date(date).toLocaleDateString('zh-CN');
 
+// Epley 公式计算 1RM: 1RM = weight × (1 + reps / 30)
+// reps=1 时 1RM=weight，reps>30 不适用
+const calc1RM = (weight, reps) => {
+  if (!weight || !reps || reps <= 0) return 0;
+  if (reps === 1) return weight;
+  if (reps > 30) return 0;
+  return Math.round(weight * (1 + reps / 30) * 10) / 10;
+};
+
 const calcStreak = (workouts) => {
   if (!workouts.length) return 0;
   const days = new Set(workouts.map(w => toDateStr(w.date)));
@@ -205,6 +214,8 @@ router.get('/stats', auth, async (req, res) => {
       .filter(w => w.type === 'cardio')
       .reduce((a, w) => a + w.sets.reduce((b, s) => b + (s.reps || 0), 0), 0);
 
+    const totalDuration = workouts.reduce((a, w) => a + (w.duration || 0), 0);
+
     res.json({
       streak,
       longestStreak: user.longestStreak || 0,
@@ -214,6 +225,7 @@ router.get('/stats', auth, async (req, res) => {
       activeDays,
       totalVolume,
       totalCardioCalories,
+      totalDuration,
     });
   } catch (e) { console.error(e); res.status(500).send('Server Error'); }
 });
@@ -333,7 +345,7 @@ router.post('/copy-last-session', auth, async (req, res) => {
   } catch { res.status(500).send('Server Error'); }
 });
 
-// GET /api/workouts/pr — 个人记录
+// GET /api/workouts/pr — 个人记录（含1RM）
 router.get('/pr', auth, async (req, res) => {
   try {
     const workouts = await Workout.find({ user: req.user.id, type: 'strength' });
@@ -342,7 +354,12 @@ router.get('/pr', auth, async (req, res) => {
       for (const s of w.sets) {
         const vol = s.weight * s.reps;
         if (!prMap[w.exercise] || vol > prMap[w.exercise].volume) {
-          prMap[w.exercise] = { exercise: w.exercise, weight: s.weight, reps: s.reps, volume: vol, date: w.date };
+          prMap[w.exercise] = { exercise: w.exercise, weight: s.weight, reps: s.reps, volume: vol, date: w.date, estimated1RM: calc1RM(s.weight, s.reps) };
+        }
+        // 同时追踪最佳 1RM
+        const rm1 = calc1RM(s.weight, s.reps);
+        if (rm1 > 0 && (!prMap[w.exercise].best1RM || rm1 > prMap[w.exercise].best1RM)) {
+          prMap[w.exercise].best1RM = rm1;
         }
       }
     }
@@ -350,16 +367,18 @@ router.get('/pr', auth, async (req, res) => {
   } catch { res.status(500).send('Server Error'); }
 });
 
-// GET /api/workouts/progress/:exercise — 单动作进步曲线
+// GET /api/workouts/progress/:exercise — 单动作进步曲线（含1RM趋势）
 router.get('/progress/:exercise', auth, async (req, res) => {
   try {
     const workouts = await Workout.find({ user: req.user.id, exercise: req.params.exercise }).sort({ date: 1 });
     res.json(workouts.map(w => {
       const best = w.sets.reduce((b, s) => s.weight > b.weight ? s : b, { weight: 0, reps: 0 });
+      const bestRM1 = w.sets.reduce((max, s) => Math.max(max, calc1RM(s.weight, s.reps)), 0);
       return {
         date: w.date,
         bestWeight: best.weight,
         bestReps: best.reps,
+        best1RM: bestRM1,
         totalVolume: w.sets.reduce((a, s) => a + s.weight * s.reps, 0),
       };
     }));
@@ -377,8 +396,8 @@ router.get('/last/:exercise', auth, async (req, res) => {
 // POST /api/workouts — 新增训练
 router.post('/', auth, async (req, res) => {
   try {
-    const { date, exercise, type, sets, notes } = req.body;
-    const workout = await new Workout({ user: req.user.id, date, exercise, type: type || 'strength', sets, notes }).save();
+    const { date, exercise, type, sets, notes, duration } = req.body;
+    const workout = await new Workout({ user: req.user.id, date, exercise, type: type || 'strength', sets, notes, duration: duration || 0 }).save();
     res.json(workout);
   } catch { res.status(500).send('Server Error'); }
 });
@@ -482,13 +501,49 @@ router.post('/templates', auth, async (req, res) => {
 
 
 
+// ─── 自定义动作 ─────────────────────────────────────────────────────────────────
+
+// GET /api/workouts/custom-exercises
+router.get('/custom-exercises', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    res.json(user?.customExercises || []);
+  } catch { res.status(500).send('Server Error'); }
+});
+
+// POST /api/workouts/custom-exercises — 添加自定义动作
+router.post('/custom-exercises', auth, async (req, res) => {
+  const { name, category, type } = req.body;
+  if (!name?.trim()) return res.status(400).json({ msg: '动作名称不能为空' });
+  try {
+    const user = await User.findById(req.user.id);
+    // 防重复
+    if (user.customExercises.some(e => e.name === name.trim())) {
+      return res.status(400).json({ msg: '该动作已存在' });
+    }
+    user.customExercises.push({ name: name.trim(), category: category || '自定义', type: type || 'strength' });
+    await user.save();
+    res.json(user.customExercises);
+  } catch { res.status(500).send('Server Error'); }
+});
+
+// DELETE /api/workouts/custom-exercises/:exerciseId
+router.delete('/custom-exercises/:exerciseId', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    user.customExercises = user.customExercises.filter(e => e._id.toString() !== req.params.exerciseId);
+    await user.save();
+    res.json(user.customExercises);
+  } catch { res.status(500).send('Server Error'); }
+});
+
 // ─── 用户画像 & 周计划 ────────────────────────────────────────────────────────
 
 // GET /api/workouts/profile
 router.get('/profile', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
-    res.json({ profile: user.profile, weeklyPlan: user.weeklyPlan, templates: user.templates });
+    res.json({ profile: user.profile, weeklyPlan: user.weeklyPlan, templates: user.templates, customExercises: user.customExercises || [] });
   } catch { res.status(500).send('Server Error'); }
 });
 

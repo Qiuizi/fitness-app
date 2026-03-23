@@ -317,6 +317,7 @@ const ProgressModal = ({ exercise, onClose, token }) => {
   const chartData = data.map(d => ({
     date: new Date(d.date).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' }),
     weight: d.bestWeight,
+    '1RM': d.best1RM || 0,
   }));
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -328,7 +329,7 @@ const ProgressModal = ({ exercise, onClose, token }) => {
         {chartData.length < 2 ? (
           <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-3)', fontSize: 14 }}>至少需要2次记录才能显示趋势</div>
         ) : (
-          <>
+              <>
             <ResponsiveContainer width="100%" height={180}>
               <AreaChart data={chartData}>
                 <defs>
@@ -336,12 +337,17 @@ const ProgressModal = ({ exercise, onClose, token }) => {
                     <stop offset="5%" stopColor="var(--c-blue)" stopOpacity={0.15} />
                     <stop offset="95%" stopColor="var(--c-blue)" stopOpacity={0} />
                   </linearGradient>
+                  <linearGradient id="rm1g" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--c-purple)" stopOpacity={0.1} />
+                    <stop offset="95%" stopColor="var(--c-purple)" stopOpacity={0} />
+                  </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                 <XAxis dataKey="date" tick={{ fill: 'var(--text-3)', fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: 'var(--text-3)', fontSize: 11 }} axisLine={false} tickLine={false} unit="kg" />
-                <Tooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-l)', fontSize: 13 }} formatter={v => [`${v} kg`, '最高重量']} />
+                <Tooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-l)', fontSize: 13 }} formatter={(v, name) => [`${v} kg`, name === '1RM' ? '估算1RM' : '最高重量']} />
                 <Area type="monotone" dataKey="weight" stroke="var(--c-blue)" strokeWidth={2.5} fill="url(#wg)" dot={{ r: 3, fill: 'var(--c-blue)' }} />
+                {chartData.some(d => d['1RM'] > 0) && <Area type="monotone" dataKey="1RM" stroke="var(--c-purple)" strokeWidth={1.5} fill="url(#rm1g)" dot={false} strokeDasharray="4 3" />}
               </AreaChart>
             </ResponsiveContainer>
             {data.length >= 2 && (() => {
@@ -536,10 +542,11 @@ const Dashboard = () => {
   const groupedWorkouts = workouts.reduce((acc, w) => {
     const raw = new Date(w.date);
     const key = raw.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
-    if (!acc[key]) acc[key] = { rawDate: raw, items: [], totalVol: 0, totalCals: 0 };
+    if (!acc[key]) acc[key] = { rawDate: raw, items: [], totalVol: 0, totalCals: 0, totalDuration: 0 };
     acc[key].items.push(w);
     if (w.type === 'strength') acc[key].totalVol += w.sets.reduce((a, s) => a + s.weight * s.reps, 0);
     else acc[key].totalCals += w.sets.reduce((a, s) => a + (s.reps || 0), 0);
+    acc[key].totalDuration += (w.duration || 0);
     return acc;
   }, {});
 
@@ -630,6 +637,18 @@ const Dashboard = () => {
                   <div className="stat-label">总量</div>
                   <div className="stat-value">{loading ? '…' : stats ? (stats.totalVolume/1000).toFixed(1) : '0'}</div>
                   <div className="stat-unit">吨</div>
+                </div>
+              </div>
+              <div className="bento-row">
+                <div className="bento-item stat-mini-card">
+                  <div className="stat-label">总时长</div>
+                  <div className="stat-value">{loading ? '…' : stats ? Math.round(stats.totalDuration / 3600) : '0'}</div>
+                  <div className="stat-unit">小时</div>
+                </div>
+                <div className="bento-item stat-mini-card">
+                  <div className="stat-label">训练</div>
+                  <div className="stat-value">{loading ? '…' : stats?.totalWorkouts ?? 0}</div>
+                  <div className="stat-unit">次</div>
                 </div>
               </div>
 
@@ -745,9 +764,10 @@ const Dashboard = () => {
                 return (
                   <div key={dateKey}>
                     {/* 日期头 */}
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10, paddingBottom:8, borderBottom:'1px solid var(--border)' }}>
+                               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10, paddingBottom:8, borderBottom:'1px solid var(--border)' }}>
                       <span style={{ fontSize:14, fontWeight:700 }}>{dateKey}</span>
-                      <div style={{ display:'flex', gap:10 }}>
+                      <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+                        {day.totalDuration > 0 && <span style={{ fontSize:10, fontWeight:700, color:'var(--c-purple)', background:'rgba(94,92,230,.1)', padding:'2px 8px', borderRadius:99 }}>{Math.round(day.totalDuration / 60)}分钟</span>}
                         {day.totalVol > 0 && <span style={{ fontSize:11, fontWeight:800, color:'var(--c-blue)' }}>{day.totalVol.toLocaleString()} kg</span>}
                         {day.totalCals > 0 && <span style={{ fontSize:11, fontWeight:800, color:'var(--c-orange)' }}>{day.totalCals} kcal</span>}
                       </div>
@@ -777,15 +797,15 @@ const Dashboard = () => {
                               >×</button>
                             </div>
 
-                            {/* 组数列表 */}
+                             {/* 组数列表 */}
                             <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
                               {w.sets.map((s, i) => (
                                 <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'4px 0', borderBottom:i<w.sets.length-1?'1px solid var(--border)':'none', fontSize:13 }}>
-                                  {w.type==='strength' && <span style={{ color:'var(--text-4)', fontFamily:'var(--font-mono)', fontSize:11, width:26, flexShrink:0 }}>S{String(i+1).padStart(2,'0')}</span>}
+                                  {w.type==='strength' && <span style={{ color: s.isWarmup ? 'var(--c-orange)' : 'var(--text-4)', fontFamily:'var(--font-mono)', fontSize:11, width:26, flexShrink:0 }}>{s.isWarmup ? `W${String(i+1).padStart(2,'0')}` : `S${String(i+1).padStart(2,'0')}`}</span>}
                                   {w.type==='cardio' ? (
                                     <><span style={{ fontWeight:600 }}>{s.weight} min</span>{s.reps>0 && <span style={{ color:'var(--c-orange)', fontWeight:600 }}>{s.reps} kcal</span>}</>
                                   ) : (
-                                    <><span style={{ fontWeight:600 }}>{s.weight===0?'自重':`${s.weight} kg`}</span><span style={{ color:'var(--text-4)' }}>×</span><span style={{ fontWeight:600 }}>{s.reps} 次</span></>
+                                    <><span style={{ fontWeight:600 }}>{s.weight===0?'自重':`${s.weight} kg`}</span><span style={{ color:'var(--text-4)' }}>×</span><span style={{ fontWeight:600 }}>{s.reps} 次</span>{s.rpe && <span style={{ color: s.rpe >= 9 ? '#ff3b30' : s.rpe >= 7 ? '#ff9f0a' : '#34c759', fontSize: 10, fontWeight: 700 }}>RPE{s.rpe}</span>}</>
                                   )}
                                   {/* 单组删除 */}
                                   <button
@@ -827,10 +847,11 @@ const Dashboard = () => {
                     <div style={{ fontSize:14, fontWeight:700, marginBottom:1 }}>{pr.exercise}</div>
                     <div style={{ fontSize:11, color:'var(--text-3)' }}>{new Date(pr.date).toLocaleDateString('zh-CN', { year:'numeric', month:'long', day:'numeric' })}</div>
                   </div>
-                  <div style={{ textAlign:'right', marginRight:8 }}>
-                    <div style={{ fontSize:17, fontWeight:800, color:'var(--c-blue)', letterSpacing:'-0.02em' }}>{pr.weight===0?'自重':`${pr.weight} kg`}</div>
-                    <div style={{ fontSize:11, color:'var(--text-3)' }}>× {pr.reps} 次</div>
-                  </div>
+                   <div style={{ textAlign:'right', marginRight:8 }}>
+                     <div style={{ fontSize:17, fontWeight:800, color:'var(--c-blue)', letterSpacing:'-0.02em' }}>{pr.weight===0?'自重':`${pr.weight} kg`}</div>
+                     <div style={{ fontSize:11, color:'var(--text-3)' }}>× {pr.reps} 次</div>
+                     {pr.best1RM > 0 && <div style={{ fontSize:10, color:'var(--c-purple)', fontWeight:700, marginTop:2 }}>1RM ≈ {pr.best1RM} kg</div>}
+                   </div>
                   <button className="secondary" style={{ fontSize:12, padding:'7px 12px', borderRadius:99, flexShrink:0 }} onClick={() => setProgressExercise(pr.exercise)}>趋势</button>
                 </div>
               ))}
