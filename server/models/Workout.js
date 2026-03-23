@@ -11,6 +11,7 @@ const WorkoutSchema = new mongoose.Schema({
     reps: Number,    // 力量: 次数；有氧: 卡路里
     isWarmup: { type: Boolean, default: false },  // 是否热身组
     rpe: { type: Number, min: 1, max: 10 },       // RPE 自觉疲劳度评分 (1-10)
+    setType: { type: String, enum: ['normal', 'superset', 'dropset'], default: 'normal' },  // 组类型
   }],
   notes: String,
   duration: { type: Number, default: 0 },  // 该动作完成用时(秒)

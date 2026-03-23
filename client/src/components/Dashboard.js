@@ -122,7 +122,7 @@ const SwipeToDeleteRow = ({ onDelete, deleteLabel = '删除', children }) => {
 };
 
 // ─── 月历组件 ────────────────────────────────────────────────────────────────
-const MonthCalendar = ({ activeDates }) => {
+const MonthCalendar = ({ activeDates, onDayClick }) => {
   const today = new Date();
   const [viewYear,  setViewYear]  = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
@@ -198,7 +198,9 @@ const MonthCalendar = ({ activeDates }) => {
           return (
             <div key={cell.dateStr}
               className={['calendar-cell', cell.isActive?'active':'', cell.isToday?'today':''].filter(Boolean).join(' ')}
-              title={cell.isActive ? `${cell.dateStr} 已打卡` : ''}
+              onClick={() => cell.isActive && onDayClick ? onDayClick(cell.dateStr) : null}
+              style={{ cursor: cell.isActive ? 'pointer' : 'default' }}
+              title={cell.isActive ? `${cell.dateStr} 点击查看详情` : ''}
             >{cell.day}</div>
           );
         })}
@@ -269,19 +271,20 @@ const TemplateManager = ({ templates, onStartTemplate, onDelete, onCreateNew }) 
               {t.lastUsed && (
                 <div style={{ fontSize: 11, color: 'var(--c-blue)', marginTop: 2, fontWeight: 500 }}>
                   上次 {new Date(t.lastUsed).toLocaleDateString('zh-CN')}{t.useCount > 1 && ` · ${t.useCount}次`}
-                </div>
-              )}
             </div>
-            <button onClick={() => onStartTemplate(t)} style={{ padding: '9px 18px', fontSize: 14, flexShrink: 0 }}>开始</button>
+          )}
+
+          {/* 体态对比入口 */}
+          <div onClick={() => setShowPhotos(true)} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r-xl)', padding:'14px 16px', cursor:'pointer', display:'flex', alignItems:'center', gap:12, marginBottom:14 }}>
+            <span style={{ fontSize:24 }}>📸</span>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:14, fontWeight:700 }}>体态对比</div>
+              <div style={{ fontSize:12, color:'var(--text-3)' }}>{progressPhotos.length > 0 ? `${progressPhotos.length}张照片 · 点击对比` : '上传照片记录变化'}</div>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="var(--text-4)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </div>
-        </SwipeToDeleteRow>
-      ))}
-      <button onClick={onCreateNew}
-        style={{ border: '1.5px dashed var(--border)', background: 'transparent', color: 'var(--text-3)', padding: '14px', fontSize: 14, fontWeight: 600, borderRadius: 'var(--r-l)', marginTop: 4 }}>
-        + 新建模板
-      </button>
-    </div>
-  );
+        </div>
+      );
 };
 
 // ─── Body Weight Modal ────────────────────────────────────────────────────────
@@ -371,7 +374,7 @@ const ProgressModal = ({ exercise, onClose, token }) => {
 };
 
 // ─── Profile Modal ────────────────────────────────────────────────────────────
-const ProfileModal = ({ onClose, onSave, onLogout, currentProfile }) => {
+const ProfileModal = ({ onClose, onSave, onLogout, currentProfile, reminderSettings, onSaveReminder }) => {
   const [form, setForm] = useState({
     heightCm: currentProfile?.heightCm || '',
     age: currentProfile?.age || '',
@@ -380,7 +383,14 @@ const ProfileModal = ({ onClose, onSave, onLogout, currentProfile }) => {
     level: currentProfile?.level || 'beginner',
     weeklyFrequency: currentProfile?.weeklyFrequency || 3,
   });
+  const [reminder, setReminder] = useState({
+    enabled: reminderSettings?.enabled || false,
+    time: reminderSettings?.time || '18:00',
+    days: reminderSettings?.days || [],
+  });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const setR = (k, v) => setReminder(r => ({ ...r, [k]: v }));
+  const dayLabels = ['日','一','二','三','四','五','六'];
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-card wide" onClick={e => e.stopPropagation()}>
@@ -415,8 +425,173 @@ const ProfileModal = ({ onClose, onSave, onLogout, currentProfile }) => {
             </div>
           </div>
         </div>
-        <button onClick={() => onSave(form)} style={{ width: '100%', marginTop: 16 }}>保存</button>
+
+        {/* 训练提醒 */}
+        <div style={{ borderTop:'1px solid var(--border)', marginTop:16, paddingTop:16 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+            <label style={{ margin:0 }}>训练提醒</label>
+            <button onClick={() => setR('enabled', !reminder.enabled)} style={{ background: reminder.enabled ? 'var(--c-green)' : 'var(--surface-3)', color: reminder.enabled ? '#fff' : 'var(--text-3)', border:'none', borderRadius:99, padding:'5px 14px', fontSize:12, fontWeight:700, cursor:'pointer' }}>{reminder.enabled ? '已开启' : '已关闭'}</button>
+          </div>
+          {reminder.enabled && (
+            <>
+              <div style={{ marginBottom:10 }}>
+                <label style={{ fontSize:12 }}>提醒时间</label>
+                <input type="time" value={reminder.time} onChange={e => setR('time', e.target.value)} style={{ fontSize:14 }} />
+              </div>
+              <div>
+                <label style={{ fontSize:12 }}>提醒日期</label>
+                <div style={{ display:'flex', gap:4, marginTop:6 }}>
+                  {dayLabels.map((d, i) => (
+                    <button key={i} onClick={() => {
+                      setR('days', reminder.days.includes(i) ? reminder.days.filter(x => x !== i) : [...reminder.days, i]);
+                    }} style={{ flex:1, padding:'8px 0', borderRadius:8, fontSize:12, fontWeight:700, border:'none', cursor:'pointer',
+                      background: reminder.days.includes(i) ? 'var(--c-blue)' : 'var(--surface-3)',
+                      color: reminder.days.includes(i) ? '#fff' : 'var(--text-4)',
+                    }}>{d}</button>
+                  ))}
+                </div>
+              </div>
+              <button onClick={() => onSaveReminder(reminder)} style={{ width:'100%', marginTop:10, fontSize:13, padding:10 }}>保存提醒设置</button>
+            </>
+          )}
+        </div>
+
+        <button onClick={() => onSave(form)} style={{ width: '100%', marginTop: 16 }}>保存资料</button>
         <button onClick={onLogout} style={{ width: '100%', marginTop: 10, background: 'var(--c-red-dim)', color: 'var(--c-red)', fontSize: 14 }}>退出登录</button>
+      </div>
+    </div>
+  );
+};
+
+// ─── Day Summary Modal ──────────────────────────────────────────────────────
+const DaySummaryModal = ({ date, data, onClose }) => {
+  if (!data) return null;
+  const dateLabel = new Date(date).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-card wide" onClick={e => e.stopPropagation()}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+          <h3 style={{ margin:0 }}>{dateLabel}</h3>
+          <button className="secondary" onClick={onClose} style={{ padding:'6px 14px', fontSize:13 }}>关闭</button>
+        </div>
+        {data.exercises.length === 0 ? (
+          <div style={{ textAlign:'center', padding:'20px 0', color:'var(--text-3)', fontSize:14 }}>这一天没有训练记录</div>
+        ) : (
+          <>
+            <div style={{ display:'flex', gap:12, marginBottom:16 }}>
+              <div style={{ flex:1, background:'var(--surface-3)', borderRadius:10, padding:'10px 12px', textAlign:'center' }}>
+                <div style={{ fontSize:20, fontWeight:800 }}>{data.exerciseCount}</div>
+                <div style={{ fontSize:10, color:'var(--text-4)', fontWeight:600 }}>动作</div>
+              </div>
+              <div style={{ flex:1, background:'var(--surface-3)', borderRadius:10, padding:'10px 12px', textAlign:'center' }}>
+                <div style={{ fontSize:20, fontWeight:800 }}>{(data.totalVolume/1000).toFixed(1)}t</div>
+                <div style={{ fontSize:10, color:'var(--text-4)', fontWeight:600 }}>训练量</div>
+              </div>
+              <div style={{ flex:1, background:'var(--surface-3)', borderRadius:10, padding:'10px 12px', textAlign:'center' }}>
+                <div style={{ fontSize:20, fontWeight:800 }}>{Math.round(data.totalDuration/60)}m</div>
+                <div style={{ fontSize:10, color:'var(--text-4)', fontWeight:600 }}>时长</div>
+              </div>
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+              {data.exercises.map((ex, i) => (
+                <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 12px', background:'var(--surface-3)', borderRadius:10 }}>
+                  <div>
+                    <div style={{ fontSize:14, fontWeight:600 }}>{ex.exercise}</div>
+                    <div style={{ fontSize:11, color:'var(--text-4)' }}>{ex.type === 'cardio' ? '有氧' : '力量'} · {ex.sets}组</div>
+                  </div>
+                  {ex.bestSet && ex.type === 'strength' && (
+                    <div style={{ textAlign:'right' }}>
+                      <div style={{ fontSize:14, fontWeight:700, color:'var(--c-blue)' }}>{ex.bestSet.weight === 0 ? '自重' : `${ex.bestSet.weight}kg`}</div>
+                      <div style={{ fontSize:10, color:'var(--text-4)' }}>×{ex.bestSet.reps}次</div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── Progress Photos Modal ────────────────────────────────────────────────────
+const PhotosModal = ({ photos, token, onClose, onRefresh }) => {
+  const [selectedPhotos, setSelectedPhotos] = useState([]);
+  const [uploading, setUploading] = useState(false);
+
+  const handleUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/workouts/photos`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+          body: JSON.stringify({ image: reader.result, date: new Date(), label: '' }),
+        });
+        if (res.ok) { onRefresh(); }
+      } catch {}
+      setUploading(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const toggleSelect = (photo) => {
+    setSelectedPhotos(prev => {
+      if (prev.find(p => p._id === photo._id)) return prev.filter(p => p._id !== photo._id);
+      if (prev.length >= 2) return [prev[1], photo];
+      return [...prev, photo];
+    });
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-card wide" onClick={e => e.stopPropagation()}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+          <h3 style={{ margin:0 }}>体态对比</h3>
+          <button className="secondary" onClick={onClose} style={{ padding:'6px 14px', fontSize:13 }}>关闭</button>
+        </div>
+
+        {/* 对比视图 */}
+        {selectedPhotos.length === 2 && (
+          <div style={{ display:'flex', gap:8, marginBottom:16 }}>
+            {selectedPhotos.map((p, i) => (
+              <div key={i} style={{ flex:1, position:'relative' }}>
+                <img src={`${API_URL}${p.url}`} alt="" style={{ width:'100%', borderRadius:12, objectFit:'cover', maxHeight:250 }} />
+                <div style={{ position:'absolute', bottom:6, left:6, background:'rgba(0,0,0,.6)', color:'#fff', padding:'2px 8px', borderRadius:6, fontSize:11, fontWeight:600 }}>{new Date(p.date).toLocaleDateString('zh-CN',{month:'short',day:'numeric'})}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* 上传 */}
+        <label style={{ display:'block', marginBottom:12 }}>
+          <div style={{ padding:'12px', border:'2px dashed var(--border)', borderRadius:12, textAlign:'center', cursor:'pointer', color:'var(--c-blue)', fontWeight:600, fontSize:14 }}>
+            {uploading ? '上传中…' : '+ 上传新照片'}
+          </div>
+          <input type="file" accept="image/*" capture="environment" onChange={handleUpload} style={{ display:'none' }} />
+        </label>
+
+        {/* 照片列表 */}
+        <div style={{ fontSize:11, color:'var(--text-4)', marginBottom:8, fontWeight:600 }}>选择2张照片对比（点击选择）</div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:6, maxHeight:'40vh', overflowY:'auto' }}>
+          {photos.map(p => {
+            const isSelected = selectedPhotos.find(s => s._id === p._id);
+            return (
+              <div key={p._id} onClick={() => toggleSelect(p)} style={{ position:'relative', cursor:'pointer', borderRadius:10, overflow:'hidden', border: isSelected ? '3px solid var(--c-blue)' : '3px solid transparent', transition:'border .2s' }}>
+                <img src={`${API_URL}${p.url}`} alt="" style={{ width:'100%', aspectRatio:'3/4', objectFit:'cover', display:'block' }} />
+                <div style={{ position:'absolute', bottom:4, left:4, background:'rgba(0,0,0,.5)', color:'#fff', padding:'1px 6px', borderRadius:4, fontSize:10 }}>
+                  {new Date(p.date).toLocaleDateString('zh-CN',{month:'numeric',day:'numeric'})}
+                </div>
+                {isSelected && <div style={{ position:'absolute', top:4, right:4, width:20, height:20, borderRadius:'50%', background:'var(--c-blue)', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800 }}>✓</div>}
+              </div>
+            );
+          })}
+        </div>
+        {photos.length === 0 && <div style={{ textAlign:'center', padding:'24px 0', color:'var(--text-3)', fontSize:13 }}>还没有照片，上传第一张吧</div>}
       </div>
     </div>
   );
@@ -460,6 +635,11 @@ const EditWorkoutModal = ({ workout, onSave, onClose }) => {
                   <input type="number" value={s.reps} onChange={e => handleSetChange(i, 'reps', e.target.value)} style={{ width:44, fontSize:14, textAlign:'center', border:'none', background:'white', borderRadius:6, padding:'6px 4px', outline:'none' }} />
                   <span style={{ fontSize:10, color:'var(--text-4)' }}>次</span>
                   <button onClick={() => handleSetChange(i, 'isWarmup', !s.isWarmup)} style={{ background: s.isWarmup ? 'var(--c-orange-dim)' : 'white', border:'none', borderRadius:6, padding:'4px 8px', fontSize:10, fontWeight:700, cursor:'pointer', color: s.isWarmup ? '#b86800' : 'var(--text-4)' }}>{s.isWarmup ? '热' : '正'}</button>
+                  {!s.isWarmup && <div style={{ display:'flex', gap:2 }}>
+                    {[['normal','N',''],['superset','超','#5e5ce6'],['dropset','降','#ff9f0a']].map(([v,l,c]) => (
+                      <button key={v} onClick={() => handleSetChange(i, 'setType', s.setType === v ? 'normal' : v)} style={{ padding:'2px 6px', borderRadius:4, fontSize:9, fontWeight:700, border:'none', cursor:'pointer', background: s.setType === v ? (c ? `${c}15` : 'var(--c-blue-dim)') : 'white', color: s.setType === v ? (c || 'var(--c-blue)') : 'var(--text-4)' }}>{l}</button>
+                    ))}
+                  </div>}
                 </>
               )}
               <button onClick={() => removeSet(i)} style={{ marginLeft:'auto', background:'none', border:'none', color:'var(--c-red)', fontSize:16, cursor:'pointer', padding:'0 4px' }}>×</button>
@@ -568,6 +748,8 @@ const Dashboard = () => {
   const [muscleHeatmap, setMuscleHeatmap] = useState(null);
   const [muscleVolume, setMuscleVolume]   = useState(null);
   const [trainingPlans, setTrainingPlans] = useState([]);
+  const [progressPhotos, setProgressPhotos] = useState([]);
+  const [reminderSettings, setReminderSettings] = useState(null);
 
   const [period, setPeriod]             = useState('all');
   const [activeTab, setActiveTab]       = useState('overview');
@@ -577,11 +759,16 @@ const Dashboard = () => {
 
   // 删除确认
   const [deleteTarget, setDeleteTarget] = useState(null);
-  // { type: 'workout'|'set'|'bwEntry', id, setIndex?, label, desc }
 
   // 编辑模式
   const [editWorkout, setEditWorkout] = useState(null);
-  // { _id, exercise, sets:[...] }
+
+  // 日历详情
+  const [selectedDay, setSelectedDay] = useState(null);
+  const [daySummary, setDaySummary] = useState(null);
+
+  // 体态对比
+  const [showPhotos, setShowPhotos] = useState(false);
 
   const fetchAll = useCallback(async () => {
     if (!token) return;
@@ -611,12 +798,32 @@ const Dashboard = () => {
         setTemplates(p.templates || []);
         setTodayPlan(p.weeklyPlan || []);
         setUserProfile(p.profile || null);
+        setProgressPhotos(p.progressPhotos || []);
+        setReminderSettings(p.reminder || { enabled: false, time: '18:00', days: [] });
       }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }, [token, period]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // ── 训练提醒通知
+  useEffect(() => {
+    if (!reminderSettings?.enabled || !('Notification' in window)) return;
+    if (Notification.permission === 'default') Notification.requestPermission();
+    const checkReminder = () => {
+      if (Notification.permission !== 'granted') return;
+      const now = new Date();
+      const currentDay = now.getDay();
+      const currentTime = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+      const shouldRemind = reminderSettings.days.length === 0 || reminderSettings.days.includes(currentDay);
+      if (shouldRemind && currentTime === reminderSettings.time) {
+        new Notification('IRON 健身提醒', { body: '该去训练了！保持连续打卡 💪', icon: '/favicon.ico' });
+      }
+    };
+    const interval = setInterval(checkReminder, 60000);
+    return () => clearInterval(interval);
+  }, [reminderSettings]);
 
   // ── 删除执行 ──
   const execDelete = async () => {
@@ -689,6 +896,34 @@ const Dashboard = () => {
         body: JSON.stringify({ sets: setsToSave.map(({ idx, ...s }) => s) }),
       });
       if (res.ok) { setEditWorkout(null); fetchAll(); }
+    } catch (e) { console.error(e); }
+  };
+
+  // ── 日历点击查看训练详情
+  const handleDayClick = useCallback(async (dateStr) => {
+    setSelectedDay(dateStr);
+    try {
+      const res = await fetch(`${API_URL}/api/workouts/day/${dateStr}`, { headers: { 'x-auth-token': token } });
+      if (res.ok) setDaySummary(await res.json());
+    } catch { setDaySummary(null); }
+  }, [token]);
+
+  // ── 训练提醒
+  const handleSaveReminder = async (settings) => {
+    try {
+      const res = await fetch(`${API_URL}/api/workouts/reminder`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body: JSON.stringify(settings),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setReminderSettings(updated);
+        // 注册浏览器通知
+        if (updated.enabled && 'Notification' in window) {
+          Notification.requestPermission();
+        }
+      }
     } catch (e) { console.error(e); }
   };
 
@@ -771,7 +1006,7 @@ const Dashboard = () => {
           <div className="bento-grid">
             {/* 日历 */}
             <div className="bento-item calendar-card">
-              <MonthCalendar activeDates={allActiveDates} />
+              <MonthCalendar activeDates={allActiveDates} onDayClick={handleDayClick} />
             </div>
             {/* 右列 */}
             <div className="bento-col">
@@ -1000,7 +1235,7 @@ const Dashboard = () => {
                                   {w.type==='cardio' ? (
                                     <><span style={{ fontWeight:600 }}>{s.weight} min</span>{s.reps>0 && <span style={{ color:'var(--c-orange)', fontWeight:600 }}>{s.reps} kcal</span>}</>
                                   ) : (
-                                    <><span style={{ fontWeight:600 }}>{s.weight===0?'自重':`${s.weight} kg`}</span><span style={{ color:'var(--text-4)' }}>×</span><span style={{ fontWeight:600 }}>{s.reps} 次</span>{s.rpe && <span style={{ color: s.rpe >= 9 ? '#ff3b30' : s.rpe >= 7 ? '#ff9f0a' : '#34c759', fontSize: 10, fontWeight: 700 }}>RPE{s.rpe}</span>}</>
+                                    <><span style={{ fontWeight:600 }}>{s.weight===0?'自重':`${s.weight} kg`}</span><span style={{ color:'var(--text-4)' }}>×</span><span style={{ fontWeight:600 }}>{s.reps} 次</span>{s.setType==='superset' && <span style={{ color:'#5e5ce6', fontSize:9, fontWeight:700, marginLeft:4, background:'rgba(94,92,230,.1)', padding:'1px 4px', borderRadius:3 }}>超级</span>}{s.setType==='dropset' && <span style={{ color:'#ff9f0a', fontSize:9, fontWeight:700, marginLeft:4, background:'rgba(255,159,10,.1)', padding:'1px 4px', borderRadius:3 }}>递减</span>}{s.rpe && <span style={{ color: s.rpe >= 9 ? '#ff3b30' : s.rpe >= 7 ? '#ff9f0a' : '#34c759', fontSize: 10, fontWeight: 700, marginLeft:4 }}>RPE{s.rpe}</span>}</>
                                   )}
                                   {/* 单组删除 */}
                                   <button
@@ -1306,9 +1541,11 @@ const Dashboard = () => {
       {/* ── Modals ── */}
       {progressExercise && <ProgressModal exercise={progressExercise} onClose={() => setProgressExercise(null)} token={token} />}
       {showBWModal && <BodyWeightModal onClose={() => setShowBWModal(false)} onSave={handleSaveBW} />}
-      {showProfile && <ProfileModal onClose={() => setShowProfile(false)} onSave={handleSaveProfile} onLogout={logout} currentProfile={userProfile} />}
+      {showProfile && <ProfileModal onClose={() => setShowProfile(false)} onSave={handleSaveProfile} onLogout={logout} currentProfile={userProfile} reminderSettings={reminderSettings} onSaveReminder={handleSaveReminder} />}
       {editWorkout && <EditWorkoutModal workout={editWorkout} onClose={() => setEditWorkout(null)} onSave={(newSets) => handleSaveEdit(newSets)} />}
       {showCreatePlan && <CreatePlanModal templates={templates} onClose={() => setShowCreatePlan(false)} onSave={handleCreatePlan} />}
+      {selectedDay && daySummary && <DaySummaryModal date={selectedDay} data={daySummary} onClose={() => { setSelectedDay(null); setDaySummary(null); }} />}
+      {showPhotos && <PhotosModal photos={progressPhotos} token={token} onClose={() => setShowPhotos(false)} onRefresh={() => fetchAll()} />}
 
       {/* ── 删除确认 Sheet ── */}
       {deleteTarget && (

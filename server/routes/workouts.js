@@ -1,5 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const fs = require('fs');
+const path = require('path');
 const Workout = require('../models/Workout');
 const User = require('../models/User');
 const router = express.Router();
@@ -596,7 +598,7 @@ router.delete('/custom-exercises/:exerciseId', auth, async (req, res) => {
 router.get('/profile', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
-    res.json({ profile: user.profile, weeklyPlan: user.weeklyPlan, templates: user.templates, customExercises: user.customExercises || [] });
+    res.json({ profile: user.profile, weeklyPlan: user.weeklyPlan, templates: user.templates, customExercises: user.customExercises || [], reminder: user.reminder, progressPhotos: user.progressPhotos || [] });
   } catch { res.status(500).send('Server Error'); }
 });
 
@@ -702,11 +704,12 @@ router.put('/:id/set/:setIndex', auth, async (req, res) => {
     if (w.user.toString() !== req.user.id) return res.status(401).json({ msg: 'Unauthorized' });
     const idx = parseInt(req.params.setIndex);
     if (idx < 0 || idx >= w.sets.length) return res.status(400).json({ msg: 'Invalid set index' });
-    const { weight, reps, isWarmup, rpe } = req.body;
+    const { weight, reps, isWarmup, rpe, setType } = req.body;
     if (weight !== undefined) w.sets[idx].weight = weight;
     if (reps !== undefined) w.sets[idx].reps = reps;
     if (isWarmup !== undefined) w.sets[idx].isWarmup = isWarmup;
     if (rpe !== undefined) w.sets[idx].rpe = rpe;
+    if (setType !== undefined) w.sets[idx].setType = setType;
     await w.save();
     res.json(w);
   } catch { res.status(500).send('Server Error'); }
@@ -821,6 +824,145 @@ router.post('/streak-shield', auth, async (req, res) => {
     user.streakShield -= 1;
     await user.save();
     res.json({ streakShield: user.streakShield });
+  } catch { res.status(500).send('Server Error'); }
+});
+
+// ─── 动作替代建议 ─────────────────────────────────────────────────────────────
+
+// GET /api/workouts/alternatives/:exercise — 获取同肌群替代动作
+router.get('/alternatives/:exercise', auth, async (req, res) => {
+  try {
+    const exerciseName = decodeURIComponent(req.params.exercise);
+    const targetMuscles = EXERCISE_MUSCLE_MAP[exerciseName] || [];
+    if (!targetMuscles.length) return res.json([]);
+
+    // 找到所有共享至少一个肌群的动作（排除自身）
+    const alternatives = [];
+    for (const [ex, muscles] of Object.entries(EXERCISE_MUSCLE_MAP)) {
+      if (ex === exerciseName) continue;
+      const overlap = muscles.filter(m => targetMuscles.includes(m));
+      if (overlap.length > 0) {
+        const score = overlap.length;
+        alternatives.push({ exercise: ex, muscles: overlap, score });
+      }
+    }
+    // 按共享肌群数排序，取前8个
+    alternatives.sort((a, b) => b.score - a.score);
+    res.json(alternatives.slice(0, 8).map(a => ({ exercise: a.exercise, muscles: a.muscles })));
+  } catch (e) { console.error(e); res.status(500).send('Server Error'); }
+});
+
+// ─── 日历详情 ─────────────────────────────────────────────────────────────────
+
+// GET /api/workouts/day/:date — 获取某天的训练摘要
+router.get('/day/:date', auth, async (req, res) => {
+  try {
+    const dateStr = req.params.date; // YYYY-MM-DD
+    const start = new Date(dateStr + 'T00:00:00');
+    const end = new Date(start.getTime() + 86400000);
+    const workouts = await Workout.find({
+      user: req.user.id,
+      date: { $gte: start, $lt: end },
+    }).sort({ createdAt: 1 });
+    if (!workouts.length) return res.json({ date: dateStr, exercises: [], totalVolume: 0, totalDuration: 0 });
+
+    const totalVolume = workouts.filter(w => w.type === 'strength')
+      .reduce((a, w) => a + w.sets.reduce((b, s) => b + (s.weight||0) * (s.reps||0), 0), 0);
+    const totalDuration = workouts.reduce((a, w) => a + (w.duration || 0), 0);
+
+    res.json({
+      date: dateStr,
+      exercises: workouts.map(w => ({
+        exercise: w.exercise, type: w.type,
+        sets: w.sets.length,
+        bestSet: w.type === 'strength'
+          ? w.sets.reduce((b, s) => (s.weight||0) * (s.reps||0) > (b.weight||0) * (b.reps||0) ? s : b, w.sets[0] || {})
+          : null,
+      })),
+      totalVolume,
+      totalDuration,
+      exerciseCount: workouts.length,
+    });
+  } catch (e) { console.error(e); res.status(500).send('Server Error'); }
+});
+
+// ─── 体态对比照片 ─────────────────────────────────────────────────────────────
+
+const uploadsDir = path.join(__dirname, '..', 'uploads', 'photos');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+// POST /api/workouts/photos — 上传体态照片 (base64)
+router.post('/photos', auth, async (req, res) => {
+  try {
+    const { image, date, label } = req.body;
+    if (!image || !date) return res.status(400).json({ msg: 'Missing fields' });
+
+    // 解析 base64
+    const matches = image.match(/^data:image\/(\w+);base64,(.+)$/);
+    if (!matches) return res.status(400).json({ msg: 'Invalid image format' });
+    const ext = matches[1];
+    const data = matches[2];
+    const filename = `${req.user.id}_${Date.now()}.${ext}`;
+    const filepath = path.join(uploadsDir, filename);
+
+    fs.writeFileSync(filepath, Buffer.from(data, 'base64'));
+
+    const user = await User.findById(req.user.id);
+    const url = `/uploads/photos/${filename}`;
+    user.progressPhotos.push({ date, url, label: label || '' });
+    user.progressPhotos.sort((a, b) => new Date(b.date) - new Date(a.date));
+    // 最多保留50张
+    if (user.progressPhotos.length > 50) user.progressPhotos = user.progressPhotos.slice(0, 50);
+    await user.save();
+    res.json(user.progressPhotos);
+  } catch (e) { console.error(e); res.status(500).send('Server Error'); }
+});
+
+// GET /api/workouts/photos — 获取照片列表
+router.get('/photos', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    res.json(user?.progressPhotos || []);
+  } catch { res.status(500).send('Server Error'); }
+});
+
+// DELETE /api/workouts/photos/:photoId — 删除照片
+router.delete('/photos/:photoId', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    const photo = user.progressPhotos.id(req.params.photoId);
+    if (photo) {
+      // 删除文件
+      const filepath = path.join(__dirname, '..', photo.url);
+      if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
+    }
+    user.progressPhotos = user.progressPhotos.filter(p => p._id.toString() !== req.params.photoId);
+    await user.save();
+    res.json(user.progressPhotos);
+  } catch { res.status(500).send('Server Error'); }
+});
+
+// ─── 训练提醒设置 ─────────────────────────────────────────────────────────────
+
+// GET /api/workouts/reminder
+router.get('/reminder', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    res.json(user?.reminder || { enabled: false, time: '18:00', days: [] });
+  } catch { res.status(500).send('Server Error'); }
+});
+
+// PUT /api/workouts/reminder
+router.put('/reminder', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    const { enabled, time, days } = req.body;
+    if (!user.reminder) user.reminder = {};
+    if (enabled !== undefined) user.reminder.enabled = enabled;
+    if (time) user.reminder.time = time;
+    if (days) user.reminder.days = days;
+    await user.save();
+    res.json(user.reminder);
   } catch { res.status(500).send('Server Error'); }
 });
 

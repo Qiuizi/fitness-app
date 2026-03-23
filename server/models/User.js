@@ -88,6 +88,20 @@ const UserSchema = new mongoose.Schema({
     category: { type: String, default: '自定义' },
     type: { type: String, enum: ['strength', 'cardio'], default: 'strength' },
   }],
+
+  // 体态照片
+  progressPhotos: [{
+    date: { type: Date, required: true },
+    url: { type: String, required: true },
+    label: { type: String, default: '' },  // 如 "正面" "侧面" "背部"
+  }],
+
+  // 训练提醒设置
+  reminder: {
+    enabled: { type: Boolean, default: false },
+    time: { type: String, default: '18:00' },  // HH:mm
+    days: { type: [Number], default: [] },      // 0=周日...6=周六，为空则按weeklyPlan
+  },
 }, { timestamps: true });
 
 // 密码加密中间件

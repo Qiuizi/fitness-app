@@ -411,9 +411,28 @@ const SetRow = memo(({ set, index, isCardio, isBodyweight, onChange, onRemove, o
         </div>
       )}
 
+      {/* 组类型选择（力量训练 & 非热身组 & 非完成） */}
+      {!isCardio && !set.isWarmup && !isDone && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 0 }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-4)', flexShrink: 0, minWidth: 24 }}>类型</span>
+          <div style={{ display: 'flex', gap: 4, flex: 1 }}>
+            {[['normal','普通组',''],['superset','超级组','#5e5ce6'],['dropset','递减组','#ff9f0a']].map(([val, label, color]) => (
+              <button key={val} type="button" onClick={() => onChange(index, 'setType', set.setType === val ? 'normal' : val)}
+                style={{ flex: 1, padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
+                  background: set.setType === val ? (color ? `${color}18` : 'var(--c-blue-dim)') : 'var(--surface-3)',
+                  color: set.setType === val ? (color || 'var(--c-blue)') : 'var(--text-4)',
+                  transition: 'all .15s',
+                }}>{label}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {isDone && (
         <div style={{ fontSize: 14, fontWeight: 600, paddingLeft: 38, color: 'var(--text-2)' }}>
           {isCardio ? `${set.weight} 分钟` : isBodyweight ? `自重 × ${set.reps} 次` : `${set.weight} kg × ${set.reps} 次`}
+          {set.setType === 'superset' && <span style={{ color:'#5e5ce6', fontSize:10, fontWeight:700, marginLeft:6, background:'rgba(94,92,230,.1)', padding:'1px 6px', borderRadius:4 }}>超级组</span>}
+          {set.setType === 'dropset' && <span style={{ color:'#ff9f0a', fontSize:10, fontWeight:700, marginLeft:6, background:'rgba(255,159,10,.1)', padding:'1px 6px', borderRadius:4 }}>递减组</span>}
           {set.rpe && <span style={{ color: set.rpe >= 9 ? '#ff3b30' : set.rpe >= 7 ? '#ff9f0a' : '#34c759', fontSize: 11, fontWeight: 700, marginLeft: 8 }}>RPE {set.rpe}</span>}
           {set.setDuration > 0 && <span style={{ color: 'var(--text-4)', fontSize: 11, fontFamily: 'var(--font-mono)', marginLeft: 8 }}>{fmtShort(set.setDuration)}</span>}
         </div>
@@ -568,6 +587,9 @@ const AddWorkout = () => {
   // 自定义动作库
   const [customExercises, setCustomExercises] = useState([]);
 
+  // 动作替代建议
+  const [alternatives, setAlternatives] = useState([]);
+
   // 休息计时：用 key 控制 RestTimer 组件重新挂载
   const [restKey, setRestKey]         = useState(0);
   const [restSecs, setRestSecs]       = useState(0);
@@ -649,24 +671,26 @@ const AddWorkout = () => {
 
   // ── 加载动作历史
   const loadExerciseData = useCallback(async (ex, cardio) => {
-    setIsLoading(true); setSuggestion(null); setLastRecord(null);
+    setIsLoading(true); setSuggestion(null); setLastRecord(null); setAlternatives([]);
     if (cardio) {
       const defaults = { '跑步': 30, '快走': 30, '动感单车': 45, '跳绳': 20, '游泳': 30, 'HIIT': 20, '椭圆机': 30, '划船机': 30 };
-      setSets([{ weight: defaults[ex] || 30, reps: 0, done: false, setDuration: 0, isWarmup: false, rpe: undefined }]);
+      setSets([{ weight: defaults[ex] || 30, reps: 0, done: false, setDuration: 0, isWarmup: false, rpe: undefined, setType: 'normal' }]);
       setIsLoading(false); return;
     }
     try {
-      const [lastRes, sugRes] = await Promise.all([
+      const [lastRes, sugRes, altRes] = await Promise.all([
         fetch(`${API_URL}/api/workouts/last/${encodeURIComponent(ex)}`, { headers: { 'x-auth-token': token } }),
         fetch(`${API_URL}/api/workouts/suggest/${encodeURIComponent(ex)}`, { headers: { 'x-auth-token': token } }),
+        fetch(`${API_URL}/api/workouts/alternatives/${encodeURIComponent(ex)}`, { headers: { 'x-auth-token': token } }),
       ]);
       if (lastRes.ok) {
         const last = await lastRes.json();
         setLastRecord(last);
-        setSets(last?.sets?.length ? last.sets.map(s => ({ weight: s.weight, reps: s.reps, done: false, setDuration: 0, isWarmup: false, rpe: undefined })) : [{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined }]);
-      } else setSets([{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined }]);
+        setSets(last?.sets?.length ? last.sets.map(s => ({ weight: s.weight, reps: s.reps, done: false, setDuration: 0, isWarmup: s.isWarmup || false, rpe: s.rpe || undefined, setType: s.setType || 'normal' })) : [{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined, setType: 'normal' }]);
+      } else setSets([{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined, setType: 'normal' }]);
       if (sugRes.ok) setSuggestion(await sugRes.json());
-    } catch { setSets([{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined }]); }
+      if (altRes.ok) setAlternatives(await altRes.json());
+    } catch { setSets([{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined, setType: 'normal' }]); }
     setIsLoading(false);
   }, [token]);
 
@@ -746,7 +770,7 @@ const AddWorkout = () => {
   // ── 完成当前动作
   const getValidSets = useCallback(() => {
     return sets
-      .map(s => ({ weight: parseFloat(s.weight) || 0, reps: parseInt(s.reps) || 0, setDuration: s.setDuration || 0, isWarmup: !!s.isWarmup, rpe: s.rpe || undefined }))
+      .map(s => ({ weight: parseFloat(s.weight) || 0, reps: parseInt(s.reps) || 0, setDuration: s.setDuration || 0, isWarmup: !!s.isWarmup, rpe: s.rpe || undefined, setType: s.setType || 'normal' }))
       .filter(s => exerciseType === 'cardio' ? s.weight > 0 : s.reps > 0);
   }, [sets, exerciseType]);
 
@@ -1085,6 +1109,22 @@ const AddWorkout = () => {
             {suggestion && <div style={{ fontSize: 14, fontWeight: 700 }}>目标 {suggestion.suggestedWeight === 0 ? '自重' : `${suggestion.suggestedWeight}kg`} × {suggestion.suggestedReps}次</div>}
           </div>
           <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-purple)', background: 'rgba(94,92,230,.1)', padding: '5px 10px', borderRadius: 8, flexShrink: 0 }}>应用</span>
+        </div>
+      )}
+
+      {/* 替代动作推荐 */}
+      {alternatives.length > 0 && !isCardio && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-4)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 6 }}>同肌群替代动作</div>
+          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, WebkitOverflowScrolling: 'touch' }}>
+            {alternatives.map(alt => (
+              <button key={alt.exercise} onClick={() => handleExerciseSelect(alt.exercise)}
+                style={{ flexShrink: 0, padding: '6px 12px', borderRadius: 99, fontSize: 12, fontWeight: 600, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-2)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                {alt.exercise}
+                <span style={{ fontSize: 10, color: 'var(--text-4)', marginLeft: 4 }}>{alt.muscles[0]}</span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
