@@ -633,6 +633,17 @@ const AddWorkout = () => {
   // 动作替代建议
   const [alternatives, setAlternatives] = useState([]);
 
+  const filteredExercises = useMemo(() => {
+    const query = searchText.trim();
+    if (query) {
+      return searchExercises(query, customExercises).map(item => item.ex);
+    }
+    if (activeCategory === 'Custom') {
+      return customExercises.map(ce => ce.name);
+    }
+    return EXERCISE_LIBRARY[activeCategory] || [];
+  }, [searchText, activeCategory, customExercises]);
+
   // 保存为模板
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
 
