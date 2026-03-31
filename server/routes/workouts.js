@@ -889,7 +889,17 @@ router.get('/day/:date', auth, async (req, res) => {
 // ─── 体态对比照片 ─────────────────────────────────────────────────────────────
 
 const uploadsDir = path.join(__dirname, '..', 'uploads', 'photos');
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+const ensureUploadsDir = () => {
+  try {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  } catch (err) {
+    if (err.code === 'EEXIST') return;
+    console.warn('[workouts] Unable to prepare uploads directory', err.message);
+  }
+};
+
+ensureUploadsDir();
 
 // POST /api/workouts/photos — 上传体态照片 (base64)
 router.post('/photos', auth, async (req, res) => {
@@ -905,7 +915,12 @@ router.post('/photos', auth, async (req, res) => {
     const filename = `${req.user.id}_${Date.now()}.${ext}`;
     const filepath = path.join(uploadsDir, filename);
 
-    fs.writeFileSync(filepath, Buffer.from(data, 'base64'));
+    try {
+      fs.writeFileSync(filepath, Buffer.from(data, 'base64'));
+    } catch (err) {
+      console.warn('[workouts] Failed to save progress photo', err.message);
+      return res.status(500).json({ msg: 'Unable to save photo' });
+    }
 
     const user = await User.findById(req.user.id);
     const url = `/uploads/photos/${filename}`;

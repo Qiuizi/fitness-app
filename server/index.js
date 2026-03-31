@@ -19,18 +19,33 @@ app.use('/api/ai', require('./routes/ai'));
 
 const PORT = process.env.PORT || 5000;
 
+const connectToMongo = async (uri) => mongoose.connect(uri, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
+
 const startServer = async () => {
   try {
     let mongoUri = process.env.MONGODB_URI;
-    if (!mongoUri) {
-      console.log('No MongoDB URI found. Starting in-memory database...');
+    let useMemoryServer = false;
+
+    if (mongoUri) {
+      try {
+        await connectToMongo(mongoUri);
+      } catch (err) {
+        console.warn('[server] Remote MongoDB unreachable:', err.message);
+        useMemoryServer = true;
+      }
+    } else {
+      useMemoryServer = true;
+    }
+
+    if (useMemoryServer) {
+      console.log('Falling back to in-memory MongoDB for local development...');
       const mongoServer = await MongoMemoryServer.create();
       mongoUri = mongoServer.getUri();
+      await connectToMongo(mongoUri);
     }
-    await mongoose.connect(mongoUri, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
     console.log('Connected to MongoDB');
     app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
   } catch (err) {
