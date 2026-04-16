@@ -929,6 +929,29 @@ const AddWorkout = () => {
     navigate('/');
   }, [phase, date, exercise, exerciseType, sets, notes, completedExercises, templateQueue, energyLevel, navigate]);
 
+  const handleDiscardAndExit = useCallback(() => {
+    clearDraft();
+    navigate('/');
+  }, [navigate]);
+
+  // 应用智能建议到第一组
+  const applySuggestion = useCallback(() => {
+    const target = suggestion
+      ? { weight: suggestion.suggestedWeight, reps: suggestion.suggestedReps }
+      : lastRecord?.sets?.[0]
+      ? { weight: lastRecord.sets[0].weight, reps: lastRecord.sets[0].reps }
+      : null;
+    if (!target) return;
+    setSets(prev => {
+      if (!prev.length) return [{ weight: target.weight, reps: target.reps, done: false, setDuration: 0, isWarmup: false, rpe: undefined, setType: 'normal' }];
+      const next = [...prev];
+      next[0] = { ...next[0], weight: target.weight, reps: target.reps };
+      return next;
+    });
+    vibrate(10);
+    toast.success(`已应用 ${target.weight === 0 ? '自重' : `${target.weight}kg`} × ${target.reps}`);
+  }, [suggestion, lastRecord, toast]);
+
   // ── 手机端防退出机制
   useEffect(() => {
     if (phase === 'summary' || phase === 'done') return;
@@ -1118,6 +1141,7 @@ const AddWorkout = () => {
   // ════ 记录组数页（Gym Mode）════
   const currentIdx = completedExercises.length;
   const totalExercises = currentIdx + 1 + templateQueue.length;
+  const isCardio = exerciseType === 'cardio';
   return (
     <div style={{ maxWidth: 'var(--content-w)', margin: '0 auto', padding: '0 16px calc(120px + env(safe-area-inset-bottom))' }}>
       {showFlash && <SetCompleteFlash onDone={onFlashDone} />}
