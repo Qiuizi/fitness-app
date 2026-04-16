@@ -351,7 +351,7 @@ const SetRow = memo(({ set, index, isCardio, isBodyweight, onChange, onRemove, o
 
         {!isDone ? (
           <>
-            <button type="button" onClick={handleComplete} style={{ background: 'var(--c-blue)', color: '#fff', border: 'none', borderRadius: 99, padding: '7px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>完成</button>
+            <button type="button" onClick={handleComplete} style={{ background: 'var(--c-blue)', color: 'var(--surface)', border: 'none', borderRadius: 99, padding: '7px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>完成</button>
             <button type="button" onClick={() => onRemove(index)} style={{ background: 'none', border: 'none', color: 'var(--text-4)', fontSize: 20, padding: '0 2px', cursor: 'pointer', lineHeight: 1, flexShrink: 0 }}>×</button>
           </>
         ) : (
@@ -366,7 +366,7 @@ const SetRow = memo(({ set, index, isCardio, isBodyweight, onChange, onRemove, o
             {isBodyweight ? (
               <div onClick={() => onToggleBodyweight(index)} style={{ width: '100%', textAlign: 'center', background: 'var(--c-blue-dim)', color: 'var(--c-blue)', fontWeight: 700, fontSize: 20, borderRadius: 10, padding: '10px 6px', cursor: 'pointer', border: '1px solid rgba(0,113,227,.2)' }}>自重</div>
             ) : (
-              <input type="number" inputMode="decimal" value={set.weight === 0 || set.weight === '' ? '' : set.weight} onChange={e => onChange(index, 'weight', e.target.value)} placeholder="0" step={isCardio ? '1' : '0.5'} style={{ width: '100%', fontSize: 24, fontWeight: 700, textAlign: 'center', border: 'none', background: 'var(--surface-3)', borderRadius: 10, padding: '10px 6px', color: 'var(--text-1)', outline: 'none', margin: 0, MozAppearance: 'textfield' }} />
+              <input type="number" inputMode="decimal" data-set-index={index} data-field="weight" value={set.weight === 0 || set.weight === '' ? '' : set.weight} onChange={e => onChange(index, 'weight', e.target.value)} placeholder="0" step={isCardio ? '1' : '0.5'} style={{ width: '100%', fontSize: 24, fontWeight: 700, textAlign: 'center', border: 'none', background: 'var(--surface-3)', borderRadius: 10, padding: '10px 6px', color: 'var(--text-1)', outline: 'none', margin: 0, MozAppearance: 'textfield' }} />
             )}
             <span style={{ fontSize: 10, color: 'var(--text-4)', marginTop: 3, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em' }}>{isCardio ? '分钟' : isBodyweight ? '自重' : 'kg'}</span>
           </div>
@@ -400,14 +400,29 @@ const SetRow = memo(({ set, index, isCardio, isBodyweight, onChange, onRemove, o
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: isDone ? 38 : 0 }}>
           <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-4)', flexShrink: 0, minWidth: 24 }}>RPE</span>
           <div style={{ display: 'flex', gap: 3, flex: 1 }}>
-            {[5, 6, 7, 8, 9, 10].map(v => (
-              <button key={v} type="button" onClick={() => onChange(index, 'rpe', set.rpe === v ? undefined : v)}
-                style={{ flex: 1, minWidth: 0, padding: '4px 0', borderRadius: 6, fontSize: 12, fontWeight: 800, border: 'none', cursor: 'pointer',
-                  background: set.rpe === v ? (v >= 9 ? 'rgba(255,59,48,.15)' : v >= 7 ? 'rgba(255,159,10,.15)' : 'rgba(52,199,89,.15)') : 'var(--surface-3)',
-                  color: set.rpe === v ? (v >= 9 ? '#ff3b30' : v >= 7 ? '#ff9f0a' : '#34c759') : 'var(--text-4)',
-                  transition: 'all .15s',
-                }}>{v}</button>
-            ))}
+            {[
+              { v: 6, label: '轻松', tone: 'ok' },
+              { v: 7, label: '还行', tone: 'ok' },
+              { v: 8, label: '较难', tone: 'warn' },
+              { v: 9, label: '很难', tone: 'high' },
+              { v: 10, label: '极限', tone: 'high' },
+            ].map(({ v, label, tone }) => {
+              const selected = set.rpe === v;
+              const bg = selected
+                ? (tone === 'high' ? 'var(--c-red-dim)' : tone === 'warn' ? 'var(--c-orange-dim)' : 'var(--c-green-dim)')
+                : 'var(--surface-3)';
+              const color = selected
+                ? (tone === 'high' ? 'var(--c-red)' : tone === 'warn' ? 'var(--c-orange)' : 'var(--c-green)')
+                : 'var(--text-4)';
+              return (
+                <button key={v} type="button" onClick={() => onChange(index, 'rpe', selected ? undefined : v)}
+                  style={{ flex: 1, minWidth: 0, padding: '4px 0', borderRadius: 6, border: 'none', cursor: 'pointer',
+                    background: bg, color, transition: 'all .15s', display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.1 }}>
+                  <span style={{ fontSize: 12, fontWeight: 800 }}>{v}</span>
+                  <span style={{ fontSize: 8, fontWeight: 600, opacity: 0.85, letterSpacing: '.02em' }}>{label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -434,7 +449,7 @@ const SetRow = memo(({ set, index, isCardio, isBodyweight, onChange, onRemove, o
           {isCardio ? `${set.weight} 分钟` : isBodyweight ? `自重 × ${set.reps} 次` : `${set.weight} kg × ${set.reps} 次`}
           {set.setType === 'superset' && <span style={{ color:'#5e5ce6', fontSize:10, fontWeight:700, marginLeft:6, background:'rgba(94,92,230,.1)', padding:'1px 6px', borderRadius:4 }}>超级组</span>}
           {set.setType === 'dropset' && <span style={{ color:'#ff9f0a', fontSize:10, fontWeight:700, marginLeft:6, background:'rgba(255,159,10,.1)', padding:'1px 6px', borderRadius:4 }}>递减组</span>}
-          {set.rpe && <span style={{ color: set.rpe >= 9 ? '#ff3b30' : set.rpe >= 7 ? '#ff9f0a' : '#34c759', fontSize: 11, fontWeight: 700, marginLeft: 8 }}>RPE {set.rpe}</span>}
+          {set.rpe && <span style={{ color: set.rpe >= 9 ? 'var(--c-red)' : set.rpe >= 8 ? 'var(--c-orange)' : 'var(--c-green)', fontSize: 11, fontWeight: 700, marginLeft: 8 }}>RPE {set.rpe}</span>}
           {set.setDuration > 0 && <span style={{ color: 'var(--text-4)', fontSize: 11, fontFamily: 'var(--font-mono)', marginLeft: 8 }}>{fmtShort(set.setDuration)}</span>}
         </div>
       )}
@@ -635,6 +650,23 @@ const AddWorkout = () => {
   // 动作替代建议
   const [alternatives, setAlternatives] = useState([]);
 
+  // 规则教练：展开"为什么"
+  const [showWhy, setShowWhy] = useState(false);
+
+  // 组间休息结束/跳过 → 自动聚焦下一组的重量输入（零摩擦记录的关键）
+  const focusNextUndoneSet = useCallback(() => {
+    requestAnimationFrame(() => {
+      const current = setsRef.current || [];
+      const idx = current.findIndex(s => !s.done);
+      if (idx < 0) return;
+      const el = document.querySelector(`input[data-set-index="${idx}"][data-field="weight"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        try { el.focus({ preventScroll: true }); } catch { el.focus(); }
+      }
+    });
+  }, []);
+
   const filteredExercises = useMemo(() => {
     const query = searchText.trim();
     if (query) {
@@ -750,9 +782,9 @@ const AddWorkout = () => {
       setIsLoading(false); return;
     }
     try {
-      const [lastRes, sugRes, altRes] = await Promise.all([
+      const [lastRes, recRes, altRes] = await Promise.all([
         fetch(`${API_URL}/api/workouts/last/${encodeURIComponent(ex)}`, { headers: { 'x-auth-token': token } }),
-        fetch(`${API_URL}/api/workouts/suggest/${encodeURIComponent(ex)}`, { headers: { 'x-auth-token': token } }),
+        fetch(`${API_URL}/api/workouts/recommend/${encodeURIComponent(ex)}`, { headers: { 'x-auth-token': token } }),
         fetch(`${API_URL}/api/workouts/alternatives/${encodeURIComponent(ex)}`, { headers: { 'x-auth-token': token } }),
       ]);
       if (lastRes.ok) {
@@ -760,7 +792,22 @@ const AddWorkout = () => {
         setLastRecord(last);
         setSets(last?.sets?.length ? last.sets.map(s => ({ weight: s.weight, reps: s.reps, done: false, setDuration: 0, isWarmup: s.isWarmup || false, rpe: s.rpe || undefined, setType: s.setType || 'normal' })) : [{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined, setType: 'normal' }]);
       } else setSets([{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined, setType: 'normal' }]);
-      if (sugRes.ok) setSuggestion(await sugRes.json());
+      if (recRes.ok) {
+        const rec = await recRes.json();
+        // 规则教练返回 {weight, reps, reason, rule, history}
+        // 兼容旧 suggestion 字段名（banner 原本读 suggestedWeight/suggestedReps）
+        if (rec && rec.weight != null) {
+          setSuggestion({
+            suggestedWeight: rec.weight,
+            suggestedReps: rec.reps,
+            reason: rec.reason,
+            rule: rec.rule,
+            history: rec.history || [],
+          });
+        } else {
+          setSuggestion(null);
+        }
+      }
       if (altRes.ok) setAlternatives(await altRes.json());
     } catch { setSets([{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined, setType: 'normal' }]); }
     setIsLoading(false);
@@ -934,23 +981,38 @@ const AddWorkout = () => {
     navigate('/');
   }, [navigate]);
 
-  // 应用智能建议到第一组
+  // 按建议开练：所有未完成的组全部填为推荐值
   const applySuggestion = useCallback(() => {
-    const target = suggestion
-      ? { weight: suggestion.suggestedWeight, reps: suggestion.suggestedReps }
-      : lastRecord?.sets?.[0]
-      ? { weight: lastRecord.sets[0].weight, reps: lastRecord.sets[0].reps }
-      : null;
-    if (!target) return;
+    if (!suggestion) return;
+    const { suggestedWeight: w, suggestedReps: r } = suggestion;
+    if (w == null) return;
     setSets(prev => {
-      if (!prev.length) return [{ weight: target.weight, reps: target.reps, done: false, setDuration: 0, isWarmup: false, rpe: undefined, setType: 'normal' }];
-      const next = [...prev];
-      next[0] = { ...next[0], weight: target.weight, reps: target.reps };
-      return next;
+      const target = prev.length ? prev : [{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined, setType: 'normal' }];
+      return target.map(s => s.done ? s : { ...s, weight: w, reps: r });
     });
     vibrate(10);
-    toast.success(`已应用 ${target.weight === 0 ? '自重' : `${target.weight}kg`} × ${target.reps}`);
-  }, [suggestion, lastRecord, toast]);
+    toast.success(`已按建议填入 ${w === 0 ? '自重' : `${w}kg`} × ${r}`);
+  }, [suggestion, toast]);
+
+  // 和上次一样：按上次最好的一组填所有未完成的组
+  const applyLastSession = useCallback(() => {
+    const best = lastRecord?.sets?.filter(s => !s.isWarmup)
+      .reduce((b, s) => (s.weight * s.reps > (b?.weight * b?.reps || 0) ? s : b), null)
+      || lastRecord?.sets?.[0];
+    if (!best) return;
+    setSets(prev => {
+      const target = prev.length ? prev : [{ weight: '', reps: '', done: false, setDuration: 0, isWarmup: false, rpe: undefined, setType: 'normal' }];
+      return target.map(s => s.done ? s : { ...s, weight: best.weight, reps: best.reps });
+    });
+    vibrate(10);
+    toast.success(`已按上次 ${best.weight === 0 ? '自重' : `${best.weight}kg`} × ${best.reps} 填入`);
+  }, [lastRecord, toast]);
+
+  // 手动：清空未完成组的预填
+  const enterManualMode = useCallback(() => {
+    setSets(prev => prev.map(s => s.done ? s : { ...s, weight: '', reps: '' }));
+    toast.info('已清空预填，手动输入');
+  }, [toast]);
 
   // ── 手机端防退出机制
   useEffect(() => {
@@ -1202,26 +1264,78 @@ const AddWorkout = () => {
 
       {isCardio && <CardioTimer onFinish={(mins) => { if (mins > 0) setSets([{ weight: mins, reps: 0, done: false, setDuration: 0, isWarmup: false, rpe: undefined, setType: 'normal' }]); }} />}
 
-      {/* 上次记录 */}
-      {lastRecord && !isCardio && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', background: 'var(--c-blue-dim)', border: '1px solid rgba(0,113,227,.15)', borderRadius: 'var(--r-m)', padding: '9px 14px', marginBottom: 12 }}>
-          <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--c-blue)', textTransform: 'uppercase', letterSpacing: '.08em', flexShrink: 0 }}>上次</span>
-          {lastRecord.sets.map((s, i) => (
-            <span key={i} style={{ fontSize: 13, color: 'var(--text-2)', background: 'white', padding: '2px 9px', borderRadius: 99, fontWeight: 600 }}>{s.weight === 0 ? '自重' : `${s.weight}kg`} × {s.reps}</span>
-          ))}
-        </div>
-      )}
-
-      {/* 智能建议 */}
+      {/* 规则教练 · 上次 + 推荐 + 为什么 + 三按钮 */}
       {(suggestion || lastRecord) && !isCardio && (
-        <div onClick={applySuggestion} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'linear-gradient(135deg,rgba(94,92,230,.07),rgba(0,113,227,.05))', border: '1px solid rgba(94,92,230,.18)', borderRadius: 'var(--r-l)', padding: '12px 14px', marginBottom: 14, cursor: 'pointer' }}>
-          <span style={{ fontSize: 20, flexShrink: 0 }}>📊</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--c-purple)', marginBottom: 2 }}>{suggestion?.isBreakthrough ? '突破机会' : '参考记录'}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 2 }}>{suggestion?.reason || '应用上次记录'}</div>
-            {suggestion && <div style={{ fontSize: 14, fontWeight: 700 }}>目标 {suggestion.suggestedWeight === 0 ? '自重' : `${suggestion.suggestedWeight}kg`} × {suggestion.suggestedReps}次</div>}
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-l)', padding: 14, marginBottom: 14 }}>
+
+          {/* 上次 */}
+          {lastRecord?.sets?.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: suggestion ? 10 : 0 }}>
+              <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-4)', textTransform: 'uppercase', letterSpacing: '.08em', flexShrink: 0 }}>上次</span>
+              {lastRecord.sets.filter(s => !s.isWarmup).map((s, i) => (
+                <span key={i} style={{ fontSize: 12, color: 'var(--text-2)', background: 'var(--surface-3)', padding: '2px 8px', borderRadius: 99, fontWeight: 600 }}>
+                  {s.weight === 0 ? '自重' : `${s.weight}kg`} × {s.reps}{s.rpe ? ` · R${s.rpe}` : ''}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* 推荐 + 为什么 */}
+          {suggestion && suggestion.suggestedWeight != null && (
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', background: 'var(--c-blue-dim)', borderRadius: 'var(--r-m)', marginBottom: 10 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--c-blue)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 2 }}>今日推荐</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)', letterSpacing: '-.01em' }}>
+                  {suggestion.suggestedWeight === 0 ? '自重' : `${suggestion.suggestedWeight}kg`} × {suggestion.suggestedReps}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 3, lineHeight: 1.4 }}>{suggestion.reason}</div>
+              </div>
+              <button type="button" onClick={() => setShowWhy(v => !v)}
+                style={{ background: 'transparent', border: '1px solid var(--border-strong)', color: 'var(--text-3)', fontSize: 11, fontWeight: 700, padding: '5px 10px', borderRadius: 99, cursor: 'pointer', flexShrink: 0 }}>
+                {showWhy ? '收起' : '为什么'}
+              </button>
+            </div>
+          )}
+
+          {/* 为什么 — 规则与历史透明化 */}
+          {showWhy && suggestion && (
+            <div style={{ background: 'var(--surface-3)', border: '1px dashed var(--border)', borderRadius: 'var(--r-m)', padding: '10px 12px', marginBottom: 10, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.55 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-4)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 6 }}>规则 · {suggestion.rule}</div>
+              {suggestion.history?.length > 0 ? (
+                <>
+                  <div style={{ marginBottom: 6 }}>最近 {suggestion.history.length} 次最强组：</div>
+                  {suggestion.history.map((h, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', fontFamily: 'var(--font-mono)', fontSize: 11 }}>
+                      <span style={{ color: 'var(--text-4)' }}>{new Date(h.date).toLocaleDateString('zh-CN')}</span>
+                      <span>{h.weight}kg × {h.reps}{h.rpe ? ` · RPE ${h.rpe}` : ''} · e1RM {h.e1rm}</span>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <div style={{ color: 'var(--text-3)' }}>暂无历史数据参考。</div>
+              )}
+            </div>
+          )}
+
+          {/* 三按钮 */}
+          <div style={{ display: 'flex', gap: 8 }}>
+            {suggestion && suggestion.suggestedWeight != null && (
+              <button type="button" onClick={applySuggestion}
+                style={{ flex: 1.4, background: 'var(--c-blue)', color: 'var(--surface)', border: 'none', borderRadius: 99, padding: '10px 8px', fontSize: 13, fontWeight: 700, cursor: 'pointer', letterSpacing: '-.01em' }}>
+                按建议开练
+              </button>
+            )}
+            {lastRecord && (
+              <button type="button" onClick={applyLastSession}
+                style={{ flex: 1, background: 'var(--surface-3)', color: 'var(--text-1)', border: 'none', borderRadius: 99, padding: '10px 8px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                和上次一样
+              </button>
+            )}
+            <button type="button" onClick={enterManualMode}
+              style={{ flex: 0.7, background: 'transparent', color: 'var(--text-3)', border: '1px solid var(--border)', borderRadius: 99, padding: '10px 8px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+              手动
+            </button>
           </div>
-          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-purple)', background: 'rgba(94,92,230,.1)', padding: '5px 10px', borderRadius: 8, flexShrink: 0 }}>应用</span>
         </div>
       )}
 
@@ -1286,7 +1400,10 @@ const AddWorkout = () => {
 
       {/* 休息计时浮窗（用 key 控制重新挂载，避免 stale state） */}
       {restActive && restSecs > 0 && (
-        <RestTimer key={restKey} initialSecs={restSecs} onSkip={() => setRestActive(false)} onAdd={() => {}} onExpire={() => setRestActive(false)} />
+        <RestTimer key={restKey} initialSecs={restSecs}
+          onSkip={() => { setRestActive(false); focusNextUndoneSet(); }}
+          onAdd={() => {}}
+          onExpire={() => { setRestActive(false); focusNextUndoneSet(); }} />
       )}
 
       {showExit && <ExitSheet onSave={handleSaveAndExit} onDiscard={handleDiscardAndExit} onCancel={() => setShowExit(false)} />}
