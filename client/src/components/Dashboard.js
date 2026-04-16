@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState, useCallback, useRef } from 'rea
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../App';
 import { API_URL } from '../config';
+import { useToast } from './Toast';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -18,8 +19,8 @@ const ACHIEVEMENTS = {
   streak_3:      { icon: '🔥',  name: '三连打卡',   desc: '连续打卡3天' },
   streak_7:      { icon: '🌟',  name: '一周不间断', desc: '连续打卡7天' },
   streak_30:     { icon: '💎',  name: '钢铁意志',   desc: '连续打卡30天' },
-  volume_10k:    { icon: '🏗️',  name: '万斤举铁',   desc: '力量总量超10,000kg' },
-  volume_100k:   { icon: '🚀',  name: '十万勇士',   desc: '力量总量超100,000kg' },
+  volume_10k:    { icon: '🏗️',  name: '十吨俱乐部', desc: '力量总量超10,000kg' },
+  volume_100k:   { icon: '🚀',  name: '百吨勇士',   desc: '力量总量超100,000kg' },
 };
 
 // ─── 日期工具 ─────────────────────────────────────────────────────────────────
@@ -27,6 +28,136 @@ const toLocalDateStr = (dateInput) => {
   const d = new Date(dateInput);
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 };
+
+// ─── 空状态 SVG 与组件 ────────────────────────────────────────────────────────
+const EmptyArt = ({ kind, size = 64 }) => {
+  const stroke = 'var(--text-4)';
+  const accent = 'var(--c-blue)';
+  const common = { width: size, height: size, viewBox: '0 0 64 64', fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' };
+  if (kind === 'template') return (
+    <svg {...common}>
+      <rect x="14" y="10" width="36" height="44" rx="6" stroke={stroke} strokeWidth="2" />
+      <line x1="22" y1="22" x2="42" y2="22" stroke={stroke} strokeWidth="2" />
+      <line x1="22" y1="30" x2="38" y2="30" stroke={stroke} strokeWidth="2" />
+      <line x1="22" y1="38" x2="34" y2="38" stroke={stroke} strokeWidth="2" />
+      <circle cx="48" cy="48" r="9" fill="var(--surface)" stroke={accent} strokeWidth="2" />
+      <line x1="48" y1="44" x2="48" y2="52" stroke={accent} strokeWidth="2" />
+      <line x1="44" y1="48" x2="52" y2="48" stroke={accent} strokeWidth="2" />
+    </svg>
+  );
+  if (kind === 'history') return (
+    <svg {...common}>
+      <path d="M12 18 L26 18 L30 24 L52 24 L52 50 L12 50 Z" stroke={stroke} strokeWidth="2" />
+      <line x1="20" y1="34" x2="44" y2="34" stroke={stroke} strokeWidth="2" />
+      <line x1="20" y1="42" x2="36" y2="42" stroke={stroke} strokeWidth="2" />
+    </svg>
+  );
+  if (kind === 'pr') return (
+    <svg {...common}>
+      <path d="M22 14 H42 V22 C42 30 38 36 32 36 C26 36 22 30 22 22 Z" stroke={stroke} strokeWidth="2" />
+      <path d="M22 18 H14 C14 24 18 28 22 28" stroke={stroke} strokeWidth="2" />
+      <path d="M42 18 H50 C50 24 46 28 42 28" stroke={stroke} strokeWidth="2" />
+      <line x1="32" y1="36" x2="32" y2="44" stroke={stroke} strokeWidth="2" />
+      <rect x="22" y="44" width="20" height="6" rx="1" stroke={accent} strokeWidth="2" />
+    </svg>
+  );
+  if (kind === 'plan') return (
+    <svg {...common}>
+      <rect x="10" y="14" width="44" height="40" rx="4" stroke={stroke} strokeWidth="2" />
+      <line x1="10" y1="24" x2="54" y2="24" stroke={stroke} strokeWidth="2" />
+      <line x1="20" y1="10" x2="20" y2="18" stroke={stroke} strokeWidth="2" />
+      <line x1="44" y1="10" x2="44" y2="18" stroke={stroke} strokeWidth="2" />
+      <circle cx="20" cy="34" r="2" fill={accent} />
+      <circle cx="32" cy="34" r="2" fill={stroke} opacity="0.5" />
+      <circle cx="44" cy="34" r="2" fill={stroke} opacity="0.5" />
+      <circle cx="20" cy="44" r="2" fill={stroke} opacity="0.5" />
+      <circle cx="32" cy="44" r="2" fill={accent} />
+      <circle cx="44" cy="44" r="2" fill={stroke} opacity="0.5" />
+    </svg>
+  );
+  return null;
+};
+
+const EmptyState = ({ kind, title, desc, action, compact = false }) => (
+  <div style={{
+    textAlign: 'center',
+    padding: compact ? '28px 20px' : '48px 24px',
+    background: compact ? 'var(--surface)' : 'transparent',
+    borderRadius: compact ? 'var(--r-xl)' : 0,
+    border: compact ? '1px solid var(--border)' : 'none',
+  }}>
+    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: compact ? 10 : 14 }}>
+      <EmptyArt kind={kind} size={compact ? 52 : 64} />
+    </div>
+    <div style={{ fontSize: compact ? 14 : 16, fontWeight: 700, color: 'var(--text-1)', marginBottom: 6, letterSpacing: '-0.01em' }}>{title}</div>
+    {desc && <div style={{ fontSize: compact ? 12 : 13, color: 'var(--text-3)', marginBottom: action ? 20 : 0, lineHeight: 1.5 }}>{desc}</div>}
+    {action}
+  </div>
+);
+
+// ─── 加载骨架屏 ────────────────────────────────────────────────────────────────
+const SkelLine = ({ w = '100%', h = 12, style }) => (
+  <span className="skeleton block" style={{ width: w, height: h, ...style }} />
+);
+const OverviewSkeleton = () => (
+  <div className="overview-grid">
+    <div className="bento-grid">
+      <div className="bento-item calendar-card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <SkelLine w={80} h={16} />
+          <SkelLine w={100} h={28} style={{ borderRadius: 999 }} />
+        </div>
+        <div className="calendar-grid" style={{ gap: 6 }}>
+          {Array.from({ length: 35 }).map((_, i) => (
+            <span key={i} className="skeleton circle" style={{ aspectRatio: '1', width: '100%' }} />
+          ))}
+        </div>
+      </div>
+      <div className="bento-col">
+        <div className="bento-item today-card-new">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <SkelLine w={56} h={16} />
+            <SkelLine w={48} h={16} style={{ borderRadius: 6 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <span className="skeleton circle" style={{ width: 48, height: 48 }} />
+            <div style={{ flex: 1 }}>
+              <SkelLine w="60%" h={14} />
+              <SkelLine w="40%" h={11} style={{ marginTop: 6 }} />
+            </div>
+          </div>
+        </div>
+        <div className="bento-row">
+          {[0, 1].map(i => (
+            <div key={i} className="bento-item stat-mini-card">
+              <SkelLine w={42} h={10} />
+              <SkelLine w={56} h={26} style={{ marginTop: 8 }} />
+              <SkelLine w={28} h={9} style={{ marginTop: 6 }} />
+            </div>
+          ))}
+        </div>
+        <div className="bento-row">
+          {[0, 1].map(i => (
+            <div key={i} className="bento-item stat-mini-card">
+              <SkelLine w={42} h={10} />
+              <SkelLine w={56} h={26} style={{ marginTop: 8 }} />
+              <SkelLine w={28} h={9} style={{ marginTop: 6 }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+    <div className="bento-item" style={{ marginBottom: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <SkelLine w={88} h={14} />
+          <SkelLine w={140} h={28} style={{ marginTop: 8 }} />
+        </div>
+        <SkelLine w={64} h={64} style={{ borderRadius: '50%' }} />
+      </div>
+    </div>
+  </div>
+);
 
 // ─── 删除确认 Sheet ───────────────────────────────────────────────────────────
 const DeleteConfirmSheet = ({ title, desc, onConfirm, onCancel }) => (
@@ -195,12 +326,13 @@ const MonthCalendar = ({ activeDates, onDayClick }) => {
       <div className="calendar-grid">
         {cells.map((cell, i) => {
           if (!cell) return <div key={`e${i}`} className="calendar-cell empty" />;
+          const clickable = cell.isActive && onDayClick;
           return (
             <div key={cell.dateStr}
               className={['calendar-cell', cell.isActive?'active':'', cell.isToday?'today':''].filter(Boolean).join(' ')}
-              onClick={() => cell.isActive && onDayClick ? onDayClick(cell.dateStr) : null}
-              style={{ cursor: cell.isActive ? 'pointer' : 'default' }}
-              title={cell.isActive ? `${cell.dateStr} 点击查看详情` : ''}
+              onClick={clickable ? () => onDayClick(cell.dateStr) : undefined}
+              style={{ cursor: clickable ? 'pointer' : 'default' }}
+              title={clickable ? `${cell.dateStr} 点击查看详情` : ''}
             >{cell.day}</div>
           );
         })}
@@ -250,12 +382,12 @@ const StreakWidget = ({ streak, longestStreak, shield, onUseShield }) => {
 const TemplateManager = ({ templates, onStartTemplate, onDelete, onCreateNew }) => {
   if (templates.length === 0) {
     return (
-      <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-        <div style={{ fontSize: 44, marginBottom: 12 }}>📋</div>
-        <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 6 }}>暂无训练模板</div>
-        <div style={{ fontSize: 14, color: 'var(--text-3)', marginBottom: 24 }}>创建固定计划，每次训练更高效</div>
-        <Link to="/add"><button style={{ padding: '12px 28px' }}>开始第一次训练</button></Link>
-      </div>
+      <EmptyState
+        kind="template"
+        title="暂无训练模板"
+        desc="创建固定计划，每次训练更高效"
+        action={<Link to="/add"><button style={{ padding: '12px 28px' }}>开始第一次训练</button></Link>}
+      />
     );
   }
   return (
@@ -516,6 +648,7 @@ const DaySummaryModal = ({ date, data, onClose }) => {
 
 // ─── Progress Photos Modal ────────────────────────────────────────────────────
 const PhotosModal = ({ photos, token, onClose, onRefresh }) => {
+  const toast = useToast();
   const [selectedPhotos, setSelectedPhotos] = useState([]);
   const [uploading, setUploading] = useState(false);
 
@@ -531,8 +664,12 @@ const PhotosModal = ({ photos, token, onClose, onRefresh }) => {
           headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
           body: JSON.stringify({ image: reader.result, date: new Date(), label: '' }),
         });
-        if (res.ok) { onRefresh(); }
-      } catch {}
+        if (!res.ok) throw new Error();
+        onRefresh();
+        toast.success('照片已上传');
+      } catch {
+        toast.error('上传失败，请稍后重试');
+      }
       setUploading(false);
     };
     reader.readAsDataURL(file);
@@ -734,6 +871,7 @@ const CreatePlanModal = ({ templates, onClose, onSave }) => {
 const Dashboard = () => {
   const { token, user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [workouts, setWorkouts]         = useState([]);
   const [stats, setStats]               = useState(null);
@@ -830,17 +968,24 @@ const Dashboard = () => {
     const { type, id, setIndex } = deleteTarget;
     try {
       if (type === 'workout') {
-        await fetch(`${API_URL}/api/workouts/${id}`, { method: 'DELETE', headers: { 'x-auth-token': token } });
+        const res = await fetch(`${API_URL}/api/workouts/${id}`, { method: 'DELETE', headers: { 'x-auth-token': token } });
+        if (!res.ok) throw new Error();
         setWorkouts(w => w.filter(x => x._id !== id));
         fetchAll();
+        toast.success('已删除训练记录');
       } else if (type === 'set') {
         const res = await fetch(`${API_URL}/api/workouts/${id}/set/${setIndex}`, { method: 'DELETE', headers: { 'x-auth-token': token } });
-        if (res.ok) fetchAll();
+        if (!res.ok) throw new Error();
+        fetchAll();
+        toast.success('已删除该组');
       } else if (type === 'bwEntry') {
-        // 目前后端暂无单条体重删除，可扩展；这里先做前端移除
         setBWLog(log => log.filter((_, i) => i !== id));
+        toast.success('已删除体重记录');
       }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+      toast.error('删除失败，请检查网络后重试');
+    }
     setDeleteTarget(null);
   };
 
@@ -851,22 +996,38 @@ const Dashboard = () => {
         headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
         body: JSON.stringify({ profile: { heightCm: parseInt(form.heightCm)||undefined, age: parseInt(form.age)||undefined, gender: form.gender||undefined, goal: form.goal, level: form.level, weeklyFrequency: parseInt(form.weeklyFrequency)||3 } }),
       });
-      if (res.ok) { setShowProfile(false); fetchAll(); }
-    } catch (e) { console.error(e); }
+      if (!res.ok) throw new Error();
+      setShowProfile(false);
+      fetchAll();
+      toast.success('个人资料已更新');
+    } catch (e) {
+      console.error(e);
+      toast.error('保存失败，请稍后重试');
+    }
   };
 
   const handleUseShield = async () => {
     try {
       const res = await fetch(`${API_URL}/api/workouts/streak-shield`, { method: 'POST', headers: { 'x-auth-token': token } });
-      if (res.ok) fetchAll();
-    } catch (e) { console.error(e); }
+      if (!res.ok) throw new Error();
+      fetchAll();
+      toast.success('护盾已使用，连续打卡不中断 🛡️');
+    } catch (e) {
+      console.error(e);
+      toast.error('护盾使用失败');
+    }
   };
 
   const handleDeleteTemplate = async (id) => {
     try {
       const res = await fetch(`${API_URL}/api/workouts/templates/${id}`, { method: 'DELETE', headers: { 'x-auth-token': token } });
-      if (res.ok) fetchAll();
-    } catch (e) { console.error(e); }
+      if (!res.ok) throw new Error();
+      fetchAll();
+      toast.success('模板已删除');
+    } catch (e) {
+      console.error(e);
+      toast.error('删除模板失败');
+    }
   };
 
   const handleStartTemplate = (template) => {
@@ -880,8 +1041,14 @@ const Dashboard = () => {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
         body: JSON.stringify({ date, weight }),
       });
-      if (res.ok) { fetchAll(); setShowBWModal(false); }
-    } catch (e) { console.error(e); }
+      if (!res.ok) throw new Error();
+      fetchAll();
+      setShowBWModal(false);
+      toast.success(`体重 ${weight}kg 已记录`);
+    } catch (e) {
+      console.error(e);
+      toast.error('保存失败，请稍后重试');
+    }
   };
 
   // ── 编辑训练记录
@@ -894,8 +1061,14 @@ const Dashboard = () => {
         headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
         body: JSON.stringify({ sets: setsToSave.map(({ idx, ...s }) => s) }),
       });
-      if (res.ok) { setEditWorkout(null); fetchAll(); }
-    } catch (e) { console.error(e); }
+      if (!res.ok) throw new Error();
+      setEditWorkout(null);
+      fetchAll();
+      toast.success('修改已保存');
+    } catch (e) {
+      console.error(e);
+      toast.error('保存失败，请稍后重试');
+    }
   };
 
   // ── 日历点击查看训练详情
@@ -915,29 +1088,37 @@ const Dashboard = () => {
         headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
         body: JSON.stringify(settings),
       });
-      if (res.ok) {
-        const updated = await res.json();
-        setReminderSettings(updated);
-        // 注册浏览器通知
-        if (updated.enabled && 'Notification' in window) {
-          Notification.requestPermission();
-        }
+      if (!res.ok) throw new Error();
+      const updated = await res.json();
+      setReminderSettings(updated);
+      if (updated.enabled && 'Notification' in window) {
+        Notification.requestPermission();
+        toast.success(`已开启提醒 · ${updated.time}`);
+      } else {
+        toast.success('提醒已更新');
       }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+      toast.error('保存提醒失败');
+    }
   };
 
   // ── 数据导出
   const handleExport = (format) => {
     const url = `${API_URL}/api/workouts/export?format=${format}`;
     fetch(url, { headers: { 'x-auth-token': token } })
-      .then(r => r.blob())
+      .then(r => {
+        if (!r.ok) throw new Error();
+        return r.blob();
+      })
       .then(blob => {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = `fitness_data.${format}`;
         a.click();
+        toast.success(`已导出 ${format.toUpperCase()} 文件`);
       })
-      .catch(() => alert('导出失败'));
+      .catch(() => toast.error('导出失败，请稍后重试'));
   };
 
   // ── 创建训练计划
@@ -949,8 +1130,14 @@ const Dashboard = () => {
         headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
         body: JSON.stringify(data),
       });
-      if (res.ok) { setShowCreatePlan(false); fetchAll(); }
-    } catch (e) { console.error(e); }
+      if (!res.ok) throw new Error();
+      setShowCreatePlan(false);
+      fetchAll();
+      toast.success('训练计划已创建');
+    } catch (e) {
+      console.error(e);
+      toast.error('创建计划失败');
+    }
   };
 
   // ── 数据处理 ──
@@ -996,6 +1183,9 @@ const Dashboard = () => {
 
   // 渲染各 Tab 内容
   const renderTabContent = () => {
+    if (loading && !stats && activeTab === 'overview') {
+      return <OverviewSkeleton />;
+    }
     switch (activeTab) {
 
       // ═══ 总览 ═══
@@ -1183,12 +1373,12 @@ const Dashboard = () => {
 
           {/* 列表 */}
           {workouts.length === 0 ? (
-            <div style={{ textAlign:'center', padding:'48px 20px', color:'var(--text-3)' }}>
-              <div style={{ fontSize:44, marginBottom:12 }}>📝</div>
-              <div style={{ fontSize:16, fontWeight:600, color:'var(--text-1)', marginBottom:6 }}>暂无记录</div>
-              <div style={{ fontSize:13, marginBottom:20 }}>从今天开始记录你的训练</div>
-              <Link to="/add"><button style={{ padding:'11px 24px' }}>开始训练</button></Link>
-            </div>
+            <EmptyState
+              kind="history"
+              title="暂无记录"
+              desc="从今天开始记录你的训练"
+              action={<Link to="/add"><button style={{ padding:'11px 24px' }}>开始训练</button></Link>}
+            />
           ) : (
             <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
               {sortedDates.map(dateKey => {
@@ -1271,11 +1461,11 @@ const Dashboard = () => {
       case 'pr': return (
         <div style={{ maxWidth:'var(--max-w)', margin:'0 auto', padding:'0 12px 20px' }}>
           {prs.length === 0 ? (
-            <div style={{ textAlign:'center', padding:'48px 20px', color:'var(--text-3)' }}>
-              <div style={{ fontSize:44, marginBottom:12 }}>🏆</div>
-              <div style={{ fontSize:16, fontWeight:600, color:'var(--text-1)', marginBottom:6 }}>还没有个人记录</div>
-              <div style={{ fontSize:13 }}>完成力量训练后，最佳成绩会自动统计</div>
-            </div>
+            <EmptyState
+              kind="pr"
+              title="还没有个人记录"
+              desc="完成力量训练后，最佳成绩会自动统计"
+            />
           ) : (
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {prs.map((pr, idx) => (
@@ -1308,11 +1498,12 @@ const Dashboard = () => {
               <button onClick={() => navigate('/add')} style={{ padding:'6px 14px', fontSize:13, fontWeight:600, borderRadius:99, background:'var(--c-blue-dim)', color:'var(--c-blue)', border:'none' }}>+ 开始训练</button>
             </div>
             {templates.length === 0 ? (
-              <div style={{ textAlign:'center', padding:'32px 20px', background:'var(--surface)', borderRadius:'var(--r-xl)', border:'1px solid var(--border)' }}>
-                <div style={{ fontSize:32, marginBottom:8 }}>📋</div>
-                <div style={{ fontSize:14, fontWeight:600, color:'var(--text-1)', marginBottom:4 }}>暂无训练模板</div>
-                <div style={{ fontSize:12, color:'var(--text-3)' }}>完成训练后可保存为模板，下次快速开始</div>
-              </div>
+              <EmptyState
+                kind="template"
+                title="暂无训练模板"
+                desc="完成训练后可保存为模板，下次快速开始"
+                compact
+              />
             ) : (
               <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                 {templates.map(t => (
@@ -1341,11 +1532,12 @@ const Dashboard = () => {
           <div>
             <div style={{ fontSize:15, fontWeight:700, marginBottom:12 }}>多周训练计划</div>
             {trainingPlans.length === 0 ? (
-              <div style={{ textAlign:'center', padding:'32px 20px', background:'var(--surface)', borderRadius:'var(--r-xl)', border:'1px solid var(--border)' }}>
-                <div style={{ fontSize:32, marginBottom:8 }}>📅</div>
-                <div style={{ fontSize:14, fontWeight:600, color:'var(--text-1)', marginBottom:4 }}>暂无训练计划</div>
-                <div style={{ fontSize:12, color:'var(--text-3)' }}>创建多周结构化计划，系统化提升</div>
-              </div>
+              <EmptyState
+                kind="plan"
+                title="暂无训练计划"
+                desc="创建多周结构化计划，系统化提升"
+                compact
+              />
             ) : (
               <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
                 {trainingPlans.map(plan => {

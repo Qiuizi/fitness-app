@@ -166,7 +166,7 @@ const Register = () => {
           {msg.text && (
             <div style={{
               background: msg.type === 'error' ? 'var(--c-red-dim)' : 'var(--c-green-dim)',
-              color: msg.type === 'error' ? '#c0392b' : '#1a7a35',
+              color: msg.type === 'error' ? 'var(--c-red)' : 'var(--c-green)',
               border: `1px solid ${msg.type === 'error' ? 'rgba(255,59,48,0.2)' : 'rgba(52,199,89,0.25)'}`,
               borderRadius: 'var(--r-s)', padding: '10px 14px', fontSize: 14, fontWeight: 500, marginBottom: 20,
               display: 'flex', alignItems: 'center', gap: 8,

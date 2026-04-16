@@ -1064,3 +1064,216 @@ label {
   from { transform: scale(0.6); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
 }
+
+/* ─── Toast ─── */
+.toast-stack {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 10px;
+  z-index: 4000;
+  pointer-events: none;
+  width: max-content;
+  max-width: calc(100% - 32px);
+}
+.toast {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px 12px 14px;
+  min-height: 44px;
+  background: rgba(28, 28, 30, 0.94);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  color: #fff;
+  border-radius: 999px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.32), 0 0 0 0.5px rgba(255,255,255,0.08) inset;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  max-width: 92vw;
+  animation: toastIn 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.18s ease, transform 0.22s ease;
+}
+.toast.leaving {
+  opacity: 0;
+  transform: translateY(8px) scale(0.96);
+}
+.toast-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+.toast-msg {
+  white-space: pre-line;
+  line-height: 1.35;
+}
+.toast-success .toast-icon { color: #32d74b; }
+.toast-error   .toast-icon { color: #ff453a; }
+.toast-info    .toast-icon { color: #64d2ff; }
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.94); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 768px) {
+  .toast-stack {
+    bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+  .toast { font-size: 13.5px; padding: 11px 16px 11px 13px; }
+}
+
+/* ─── Skeleton Loaders ─── */
+.skeleton {
+  display: inline-block;
+  background: linear-gradient(
+    90deg,
+    rgba(120, 120, 128, 0.10) 0%,
+    rgba(120, 120, 128, 0.18) 50%,
+    rgba(120, 120, 128, 0.10) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.4s ease-in-out infinite;
+  border-radius: var(--r-s);
+  vertical-align: middle;
+}
+.skeleton.block { display: block; }
+.skeleton.circle { border-radius: 50%; }
+.skeleton.pill   { border-radius: 999px; }
+
+@keyframes skeletonShimmer {
+  0%   { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+.skeleton-cell {
+  background: var(--surface);
+  border-radius: var(--r-xl);
+  padding: 20px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-s);
+}
+.skeleton-cell.compact { padding: 18px 16px; }
+
+/* ─── Dark Mode ─── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --c-blue:        #0a84ff;
+    --c-blue-hover:  #409cff;
+    --c-blue-dim:    rgba(10, 132, 255, 0.20);
+    --c-green:       #32d74b;
+    --c-green-dim:   rgba(50, 215, 75, 0.18);
+    --c-orange:      #ff9f0a;
+    --c-orange-dim:  rgba(255, 159, 10, 0.18);
+    --c-red:         #ff453a;
+    --c-red-dim:     rgba(255, 69, 58, 0.18);
+    --c-purple:      #7d7aff;
+    --c-purple-dim:  rgba(125, 122, 255, 0.18);
+    --c-indigo:      #5e5ce6;
+
+    --bg:        #000000;
+    --surface:   #1c1c1e;
+    --surface-2: #2c2c2e;
+    --surface-3: rgba(118, 118, 128, 0.24);
+
+    --text-1: #f5f5f7;
+    --text-2: rgba(235, 235, 245, 0.7);
+    --text-3: #98989f;
+    --text-4: #636366;
+
+    --border:        rgba(84, 84, 88, 0.45);
+    --border-strong: rgba(84, 84, 88, 0.7);
+
+    --shadow-s:  0 1px 4px rgba(0,0,0,0.4),   0 2px 8px rgba(0,0,0,0.3);
+    --shadow-m:  0 4px 16px rgba(0,0,0,0.45), 0 1px 4px rgba(0,0,0,0.3);
+    --shadow-l:  0 8px 32px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.3);
+    --shadow-xl: 0 20px 60px rgba(0,0,0,0.7), 0 4px 16px rgba(0,0,0,0.4);
+  }
+
+  /* Nav blur on dark */
+  .nav {
+    background: rgba(28, 28, 30, 0.8);
+    border-bottom-color: var(--border);
+  }
+  .bottom-tab-bar {
+    background: rgba(28, 28, 30, 0.92) !important;
+    border-top-color: var(--border) !important;
+  }
+
+  /* Inverted buttons (text-1 was dark, on dark bg it'd vanish) */
+  .nav-btn-primary,
+  .small-action-btn {
+    background: #ffffff;
+    color: #000000;
+  }
+  .nav-btn-primary:hover,
+  .small-action-btn:hover { opacity: 0.85; }
+
+  /* Calendar active cell — invert too */
+  .calendar-cell.active {
+    background: #ffffff;
+    color: #000000;
+  }
+  .calendar-cell.today.active {
+    background: var(--c-green);
+    color: #000000;
+  }
+
+  /* Hover backgrounds need to be lighter, not darker */
+  .calendar-nav-btn:hover { background: rgba(255,255,255,0.12); }
+  button.secondary:hover  { background: rgba(255,255,255,0.10); }
+  .nav-btn-icon:hover     { background: rgba(255,255,255,0.08); }
+  .delete-confirm-btn-cancel:hover { background: rgba(255,255,255,0.10); }
+
+  /* Status pills */
+  .status-pill.fire {
+    background: rgba(255, 69, 58, 0.18);
+    color: #ff6961;
+  }
+  .status-pill.warning {
+    background: rgba(255, 159, 10, 0.18);
+    color: #ffb340;
+  }
+
+  /* Modal overlay slightly darker so content stays legible */
+  .modal-overlay { background: rgba(0, 0, 0, 0.6); }
+
+  /* Toast already dark — nothing needed */
+
+  /* Form focus glow */
+  input:focus, textarea:focus, select:focus {
+    box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.32);
+  }
+
+  /* Skeleton shimmer needs to be visible on dark */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      rgba(255, 255, 255, 0.10) 50%,
+      rgba(255, 255, 255, 0.04) 100%
+    );
+    background-size: 200% 100%;
+  }
+
+  /* Streak widget uses var(--text-1) as bg — keep dark in dark mode (already legible) */
+  .streak-widget {
+    background: #2c2c2e;
+    border: 1px solid var(--border);
+  }
+
+  /* Auth banner text colors readable on dark dim backgrounds */
+  .auth-error    { color: #ff6961; }
+  .auth-success  { color: #5cd778; }
+  .type-tag.cardio { color: #ffb340; }
+}

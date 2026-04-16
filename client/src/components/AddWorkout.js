@@ -4,6 +4,7 @@ import React, {
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../App';
 import { API_URL } from '../config';
+import { useToast } from './Toast';
 
 // ═══════════════════════════════════════════════════════════════
 // 动作库（扩充版，按部位细分）
@@ -589,6 +590,7 @@ const AddWorkout = () => {
   const { token } = useContext(AuthContext);
   const navigate  = useNavigate();
   const location  = useLocation();
+  const toast     = useToast();
   const templateData = location.state?.template;
 
   // 总计时：用 ref 避免影响渲染
@@ -725,12 +727,11 @@ const AddWorkout = () => {
         headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
         body: JSON.stringify(templateData),
       });
-      if (res.ok) {
-        alert('模板保存成功！');
-        setShowSaveTemplate(false);
-      }
-    } catch { alert('保存失败'); }
-  }, [token]);
+      if (!res.ok) throw new Error();
+      toast.success('模板已保存');
+      setShowSaveTemplate(false);
+    } catch { toast.error('保存模板失败，请稍后重试'); }
+  }, [token, toast]);
 
   // ── 推荐休息时间
   const getRestTime = useCallback(() => {
@@ -847,7 +848,7 @@ const AddWorkout = () => {
 
   const handleFinishExercise = useCallback(() => {
     const validSets = getValidSets();
-    if (!validSets.length) { alert('请至少完成一组有效数据'); return; }
+    if (!validSets.length) { toast.error('请至少完成一组有效数据'); return; }
     const record = { date, exercise, type: exerciseType, sets: validSets, notes, duration: elapsedRef.current || 0 };
     setCompletedExercises(prev => [...prev, record]);
     setRestActive(false); setRestSecs(0);
@@ -891,14 +892,14 @@ const AddWorkout = () => {
       clearDraft();
       window.scrollTo({ top: 0, behavior: 'instant' });
       setPhase('summary');
-    } catch { alert('提交失败，请重试'); }
-  }, [completedExercises, navigate, token]);
+    } catch { toast.error('提交失败，请检查网络后重试'); }
+  }, [completedExercises, navigate, token, toast]);
 
   // ── 复制上次训练
   const handleCopyLastSession = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/api/workouts/copy-last-session`, { method: 'POST', headers: { 'x-auth-token': token } });
-      if (!res.ok) { alert('没有找到上次训练记录'); return; }
+      if (!res.ok) { toast.info('没有找到上次训练记录'); return; }
       const data = await res.json();
       if (!window.confirm(`复制 ${new Date(data.date).toLocaleDateString('zh-CN')} 的训练？共 ${data.exercises.length} 个动作`)) return;
       const first = data.exercises[0];
@@ -907,8 +908,8 @@ const AddWorkout = () => {
       setTemplateQueue(data.exercises.slice(1));
       await loadExerciseData(first.exercise, first.type === 'cardio');
       setPhase('log');
-    } catch { alert('获取失败，请重试'); }
-  }, [token, loadExerciseData]);
+    } catch { toast.error('获取失败，请重试'); }
+  }, [token, loadExerciseData, toast]);
 
   // ── 退出（有任何训练数据时必须确认）
   const hasAnyData = useCallback(() => {

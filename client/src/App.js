@@ -5,6 +5,8 @@ import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
 import AddWorkout from './components/AddWorkout';
+import { ToastProvider } from './components/Toast';
+import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
 
 export const AuthContext = createContext();
@@ -62,16 +64,20 @@ const App = () => {
 
   return (
     <AuthContext.Provider value={{ token, user, login, logout }}>
-      <Router>
-        <div className="app">
-          <Routes>
-            <Route path="/login" element={!token ? <Login /> : <Navigate to="/" />} />
-            <Route path="/register" element={!token ? <Register /> : <Navigate to="/" />} />
-            <Route path="/" element={token ? <Dashboard /> : <Navigate to="/login" />} />
-            <Route path="/add" element={token ? <AddWorkout /> : <Navigate to="/login" />} />
-          </Routes>
-        </div>
-      </Router>
+      <ToastProvider>
+        <Router>
+          <div className="app">
+            <ErrorBoundary>
+              <Routes>
+                <Route path="/login" element={!token ? <Login /> : <Navigate to="/" />} />
+                <Route path="/register" element={!token ? <Register /> : <Navigate to="/" />} />
+                <Route path="/" element={token ? <Dashboard /> : <Navigate to="/login" />} />
+                <Route path="/add" element={token ? <AddWorkout /> : <Navigate to="/login" />} />
+              </Routes>
+            </ErrorBoundary>
+          </div>
+        </Router>
+      </ToastProvider>
     </AuthContext.Provider>
   );
 };

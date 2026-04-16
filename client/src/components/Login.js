@@ -127,7 +127,7 @@ const Login = () => {
         }}>
           {errorMsg && (
             <div style={{
-              background: 'var(--c-red-dim)', color: '#c0392b',
+              background: 'var(--c-red-dim)', color: 'var(--c-red)',
               border: '1px solid rgba(255,59,48,0.2)', borderRadius: 'var(--r-s)',
               padding: '10px 14px', fontSize: 14, fontWeight: 500, marginBottom: 20,
               display: 'flex', alignItems: 'center', gap: 8,

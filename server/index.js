@@ -19,10 +19,7 @@ app.use('/api/ai', require('./routes/ai'));
 
 const PORT = process.env.PORT || 5000;
 
-const connectToMongo = async (uri) => mongoose.connect(uri, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+const connectToMongo = async (uri) => mongoose.connect(uri);
 
 const startServer = async () => {
   try {

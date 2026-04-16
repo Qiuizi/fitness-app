@@ -13,7 +13,7 @@ const User    = require('../models/User');
 const router  = express.Router();
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const OPENROUTER_MODEL   = 'openrouter/free';
+const OPENROUTER_MODEL   = process.env.OPENROUTER_MODEL || 'qwen/qwen-2.5-72b-instruct:free';
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 const auth = (req, res, next) => {
