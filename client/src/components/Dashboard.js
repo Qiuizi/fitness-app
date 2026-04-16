@@ -258,15 +258,17 @@ const MonthCalendar = ({ activeDates, onDayClick }) => {
   const [viewYear,  setViewYear]  = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
 
-  const activeDateSet = new Set(activeDates || []);
+  // activeDates 可能重复（同一天多动作），计数 → 热力强度
+  const dateCountMap = (activeDates || []).reduce((m, d) => { m[d] = (m[d]||0)+1; return m; }, {});
   const daysInMonth  = new Date(viewYear, viewMonth + 1, 0).getDate();
   const firstWeekday = new Date(viewYear, viewMonth, 1).getDay();
   const todayStr     = toLocalDateStr(today);
 
-  const thisMonthCount = [...activeDateSet].filter(d => {
+  const thisMonthDays = Object.keys(dateCountMap).filter(d => {
     const [y, m] = d.split('-').map(Number);
     return y === viewYear && m - 1 === viewMonth;
-  }).length;
+  });
+  const thisMonthCount = thisMonthDays.length;
 
   const isCurrentMonth = viewYear === today.getFullYear() && viewMonth === today.getMonth();
 
@@ -287,15 +289,26 @@ const MonthCalendar = ({ activeDates, onDayClick }) => {
   for (let i = 0; i < firstWeekday; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    cells.push({ day: d, dateStr, isToday: dateStr === todayStr, isActive: activeDateSet.has(dateStr), isFuture: dateStr > todayStr });
+    const count = dateCountMap[dateStr] || 0;
+    cells.push({ day: d, dateStr, isToday: dateStr === todayStr, isActive: count > 0, count, isFuture: dateStr > todayStr });
   }
+
+  // 热力强度：按当月内相对密度分级 (0=无 / 1=轻 / 2=中 / 3=强)
+  const maxCount = Math.max(1, ...thisMonthDays.map(d => dateCountMap[d] || 0));
+  const intensityOf = (count) => {
+    if (count <= 0) return 0;
+    const ratio = count / maxCount;
+    if (ratio > 0.66) return 3;
+    if (ratio > 0.33) return 2;
+    return 1;
+  };
 
   const getInsight = () => {
     if (!isCurrentMonth) return null;
     const weekStart = new Date(today);
     weekStart.setDate(today.getDate() - today.getDay());
     const wStr = toLocalDateStr(weekStart);
-    const cnt = [...activeDateSet].filter(d => d >= wStr && d <= todayStr).length;
+    const cnt = Object.keys(dateCountMap).filter(d => d >= wStr && d <= todayStr).length;
     if (cnt >= 4) return { type: 'fire', text: '本周极佳' };
     if (cnt >= 2) return { type: 'info', text: '保持节奏' };
     if (cnt === 1) return { type: 'info', text: '继续加油' };
@@ -326,16 +339,30 @@ const MonthCalendar = ({ activeDates, onDayClick }) => {
       <div className="calendar-grid">
         {cells.map((cell, i) => {
           if (!cell) return <div key={`e${i}`} className="calendar-cell empty" />;
-          const clickable = cell.isActive && onDayClick;
+          const clickable = !cell.isFuture && onDayClick;
+          const intensity = intensityOf(cell.count);
+          const cls = [
+            'calendar-cell',
+            intensity > 0 ? `heat-${intensity}` : '',
+            cell.isToday ? 'today' : '',
+            cell.isFuture ? 'future' : '',
+          ].filter(Boolean).join(' ');
           return (
             <div key={cell.dateStr}
-              className={['calendar-cell', cell.isActive?'active':'', cell.isToday?'today':''].filter(Boolean).join(' ')}
+              className={cls}
               onClick={clickable ? () => onDayClick(cell.dateStr) : undefined}
-              style={{ cursor: clickable ? 'pointer' : 'default' }}
-              title={clickable ? `${cell.dateStr} 点击查看详情` : ''}
+              title={cell.isFuture ? '' : `${cell.dateStr}${cell.count>0?` · ${cell.count} 动作`:''}`}
             >{cell.day}</div>
           );
         })}
+      </div>
+      {/* 图例 */}
+      <div className="calendar-legend">
+        <span>少</span>
+        <span className="lg-chip heat-1" />
+        <span className="lg-chip heat-2" />
+        <span className="lg-chip heat-3" />
+        <span>多</span>
       </div>
     </div>
   );
@@ -596,7 +623,6 @@ const ProfileModal = ({ onClose, onSave, onLogout, currentProfile, reminderSetti
 
 // ─── Day Summary Modal ──────────────────────────────────────────────────────
 const DaySummaryModal = ({ date, data, onClose }) => {
-  if (!data) return null;
   const dateLabel = new Date(date).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -605,8 +631,10 @@ const DaySummaryModal = ({ date, data, onClose }) => {
           <h3 style={{ margin:0 }}>{dateLabel}</h3>
           <button className="secondary" onClick={onClose} style={{ padding:'6px 14px', fontSize:13 }}>关闭</button>
         </div>
-        {data.exercises.length === 0 ? (
-          <div style={{ textAlign:'center', padding:'20px 0', color:'var(--text-3)', fontSize:14 }}>这一天没有训练记录</div>
+        {!data ? (
+          <div style={{ textAlign:'center', padding:'28px 0', color:'var(--text-3)', fontSize:14 }}>加载中…</div>
+        ) : data.exercises.length === 0 ? (
+          <div style={{ textAlign:'center', padding:'28px 0', color:'var(--text-3)', fontSize:14 }}>这一天没有训练记录</div>
         ) : (
           <>
             <div style={{ display:'flex', gap:12, marginBottom:16 }}>
@@ -843,9 +871,9 @@ const CreatePlanModal = ({ templates, onClose, onSave }) => {
                     <div key={dow} style={{ display:'flex', flexDirection:'column', gap:2 }}>
                       <div onClick={() => !isRest && toggleDay(w, dow)} onContextMenu={e => { e.preventDefault(); setRestDay(w, dow); }}
                         style={{ padding:'6px 10px', borderRadius:8, fontSize:11, fontWeight:600, cursor:'pointer', textAlign:'center', minWidth:50,
-                          background: isRest ? 'rgba(255,159,10,.12)' : isActive ? 'var(--c-blue-dim)' : 'var(--surface-3)',
-                          color: isRest ? '#b86800' : isActive ? 'var(--c-blue)' : 'var(--text-4)',
-                          border: isActive ? '1px solid rgba(0,113,227,.2)' : '1px solid transparent' }}>
+                          background: isRest ? 'var(--c-orange-dim)' : isActive ? 'var(--c-blue-dim)' : 'var(--surface-3)',
+                          color: isRest ? 'var(--c-orange)' : isActive ? 'var(--c-blue)' : 'var(--text-4)',
+                          border: isActive ? '1px solid var(--c-blue-dim)' : '1px solid transparent' }}>
                         {d.replace('周','')}<br/>{isRest ? '💤' : isActive ? '🏋️' : '—'}
                       </div>
                       {isActive && !isRest && templates.length > 0 && (
@@ -1074,10 +1102,12 @@ const Dashboard = () => {
   // ── 日历点击查看训练详情
   const handleDayClick = useCallback(async (dateStr) => {
     setSelectedDay(dateStr);
+    setDaySummary(null);
     try {
       const res = await fetch(`${API_URL}/api/workouts/day/${dateStr}`, { headers: { 'x-auth-token': token } });
       if (res.ok) setDaySummary(await res.json());
-    } catch { setDaySummary(null); }
+      else setDaySummary({ exercises: [], exerciseCount: 0, totalVolume: 0, totalDuration: 0 });
+    } catch { setDaySummary({ exercises: [], exerciseCount: 0, totalVolume: 0, totalDuration: 0 }); }
   }, [token]);
 
   // ── 训练提醒
@@ -1552,7 +1582,7 @@ const Dashboard = () => {
                       <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r-l)', padding:'14px 16px' }}>
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
                           <div style={{ fontSize:15, fontWeight:700 }}>{plan.name}</div>
-                          <span style={{ fontSize:11, fontWeight:700, padding:'3px 10px', borderRadius:99, background: plan.isActive ? 'rgba(52,199,89,.12)' : 'var(--surface-3)', color: plan.isActive ? '#34c759' : 'var(--text-4)' }}>{plan.isActive ? '进行中' : '已完成'}</span>
+                          <span style={{ fontSize:11, fontWeight:700, padding:'3px 10px', borderRadius:99, background: plan.isActive ? 'var(--c-green-dim)' : 'var(--surface-3)', color: plan.isActive ? 'var(--c-green)' : 'var(--text-4)' }}>{plan.isActive ? '进行中' : '已完成'}</span>
                         </div>
                         <div style={{ fontSize:12, color:'var(--text-3)', marginBottom:8 }}>{plan.weeks} 周 · {plan.schedule?.length || 0} 个训练日</div>
                         <div style={{ height:6, background:'var(--surface-3)', borderRadius:99, overflow:'hidden', marginBottom:4 }}>
@@ -1772,7 +1802,7 @@ const Dashboard = () => {
       {showProfile && <ProfileModal onClose={() => setShowProfile(false)} onSave={handleSaveProfile} onLogout={logout} currentProfile={userProfile} reminderSettings={reminderSettings} onSaveReminder={handleSaveReminder} />}
       {editWorkout && <EditWorkoutModal workout={editWorkout} onClose={() => setEditWorkout(null)} onSave={(newSets) => handleSaveEdit(newSets)} />}
       {showCreatePlan && <CreatePlanModal templates={templates} onClose={() => setShowCreatePlan(false)} onSave={handleCreatePlan} />}
-      {selectedDay && daySummary && <DaySummaryModal date={selectedDay} data={daySummary} onClose={() => { setSelectedDay(null); setDaySummary(null); }} />}
+      {selectedDay && <DaySummaryModal date={selectedDay} data={daySummary} onClose={() => { setSelectedDay(null); setDaySummary(null); }} />}
       {showPhotos && <PhotosModal photos={progressPhotos} token={token} onClose={() => setShowPhotos(false)} onRefresh={() => fetchAll()} />}
 
       {/* ── 删除确认 Sheet ── */}

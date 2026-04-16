@@ -15,7 +15,6 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/workouts', require('./routes/workouts'));
-app.use('/api/ai', require('./routes/ai'));
 
 const PORT = process.env.PORT || 5000;
 

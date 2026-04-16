@@ -1,36 +1,36 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&display=swap');
 
-/* ─── Design Tokens ─── */
+/* ─── Design Tokens (Morandi) ─── */
 :root {
-  /* Colors */
-  --c-blue:        #0071e3;
-  --c-blue-hover:  #0077ed;
-  --c-blue-dim:    rgba(0, 113, 227, 0.1);
-  --c-green:       #34c759;
-  --c-green-dim:   rgba(52, 199, 89, 0.12);
-  --c-orange:      #ff9f0a;
-  --c-orange-dim:  rgba(255, 159, 10, 0.12);
-  --c-red:         #ff3b30;
-  --c-red-dim:     rgba(255, 59, 48, 0.1);
-  --c-purple:      #5e5ce6;
-  --c-purple-dim:  rgba(94, 92, 230, 0.1);
-  --c-indigo:      #5856d6;
+  /* Colors — Morandi low-saturation */
+  --c-blue:        #8a9d96;   /* sage-teal (primary accent) */
+  --c-blue-hover:  #7a8d86;
+  --c-blue-dim:    rgba(138, 157, 150, 0.16);
+  --c-green:       #a3b29a;   /* warm sage */
+  --c-green-dim:   rgba(163, 178, 154, 0.18);
+  --c-orange:      #c9a58a;   /* muted terracotta */
+  --c-orange-dim:  rgba(201, 165, 138, 0.20);
+  --c-red:         #c08a87;   /* dusty rose */
+  --c-red-dim:     rgba(192, 138, 135, 0.18);
+  --c-purple:      #a095a9;   /* muted mauve */
+  --c-purple-dim:  rgba(160, 149, 169, 0.18);
+  --c-indigo:      #8d90a8;
 
-  /* Surface */
-  --bg:            #f2f2f7;
-  --surface:       #ffffff;
-  --surface-2:     #f2f2f7;
-  --surface-3:     rgba(118, 118, 128, 0.08);
+  /* Surface — warm cream base */
+  --bg:            #efeae2;
+  --surface:       #faf6f0;
+  --surface-2:     #e8e2d8;
+  --surface-3:     rgba(90, 78, 65, 0.07);
 
-  /* Text */
-  --text-1:        #1c1c1e;
-  --text-2:        #3c3c43;
-  --text-3:        #6d6d72;
-  --text-4:        #aeaeb2;
+  /* Text — warm neutrals */
+  --text-1:        #3a3733;
+  --text-2:        #5b5752;
+  --text-3:        #8a847d;
+  --text-4:        #b5aea6;
 
   /* Border */
-  --border:        rgba(60, 60, 67, 0.13);
-  --border-strong: rgba(60, 60, 67, 0.22);
+  --border:        rgba(90, 78, 65, 0.12);
+  --border-strong: rgba(90, 78, 65, 0.22);
 
   /* Typography */
   --font:         -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", sans-serif;
@@ -117,8 +117,8 @@ input, textarea, select { font-family: inherit; }
 }
 
 .nav-btn-primary {
-  background: var(--text-1);
-  color: #fff;
+  background: var(--c-blue);
+  color: var(--surface);
   border: none;
   padding: 7px 16px;
   border-radius: 99px;
@@ -147,7 +147,7 @@ input, textarea, select { font-family: inherit; }
 /* ─── Buttons ─── */
 button {
   background: var(--c-blue);
-  color: #fff;
+  color: var(--surface);
   border: none;
   border-radius: 99px;
   padding: 12px 24px;
@@ -288,7 +288,7 @@ label {
   background: var(--surface-3);
   color: var(--text-3);
 }
-.status-pill.fire { background: #fff0f0; color: #ff3b30; }
+.status-pill.fire { background: var(--c-orange-dim); color: var(--c-orange); }
 .status-pill.info { background: var(--c-blue-dim); color: var(--c-blue); }
 .status-pill.warning { background: var(--c-orange-dim); color: #b86800; }
 
@@ -331,26 +331,69 @@ label {
 }
 .calendar-cell.empty { visibility: hidden; }
 .calendar-cell.other-month { color: var(--text-4); }
-.calendar-cell.active {
-  background: var(--text-1);
-  color: #fff;
+.calendar-cell:not(.future):not(.empty) { cursor: pointer; }
+.calendar-cell:not(.future):not(.empty):hover {
+  background: var(--surface-3);
+}
+.calendar-cell.heat-1 {
+  background: rgba(138, 157, 150, 0.28);
+  color: var(--text-1);
+  font-weight: 600;
+}
+.calendar-cell.heat-2 {
+  background: rgba(138, 157, 150, 0.55);
+  color: var(--text-1);
   font-weight: 700;
+}
+.calendar-cell.heat-3 {
+  background: var(--c-blue);
+  color: var(--surface);
+  font-weight: 700;
+}
+.calendar-cell.heat-1:hover,
+.calendar-cell.heat-2:hover,
+.calendar-cell.heat-3:hover {
+  transform: scale(1.06);
+}
+.calendar-cell.future {
+  color: var(--text-4);
+  opacity: 0.55;
+  cursor: default;
 }
 .calendar-cell.today {
   color: var(--c-blue);
   font-weight: 700;
 }
-.calendar-cell.today.active {
-  background: var(--c-green);
-  color: #fff;
+.calendar-cell.today.heat-3 {
+  color: var(--surface);
 }
-.calendar-cell.today:not(.active)::after {
+.calendar-cell.today:not(.heat-1):not(.heat-2):not(.heat-3)::after {
   content: '';
   position: absolute;
   inset: 2px;
   border: 2px solid var(--c-blue);
   border-radius: 50%;
 }
+.calendar-legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 10px;
+  color: var(--text-4);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.calendar-legend .lg-chip {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+}
+.calendar-legend .lg-chip.heat-1 { background: rgba(138, 157, 150, 0.28); }
+.calendar-legend .lg-chip.heat-2 { background: rgba(138, 157, 150, 0.55); }
+.calendar-legend .lg-chip.heat-3 { background: var(--c-blue); }
 
 /* Calendar Navigation */
 .calendar-nav {
@@ -430,8 +473,8 @@ label {
 .today-sub-text { font-size: 13px; color: var(--text-3); margin-top: 2px; }
 
 .small-action-btn {
-  background: var(--text-1);
-  color: #fff;
+  background: var(--c-blue);
+  color: var(--surface);
   border: none;
   padding: 7px 14px;
   border-radius: 99px;
@@ -865,9 +908,9 @@ label {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 16px rgba(0,113,227,0.4);
+    box-shadow: 0 4px 16px rgba(138, 157, 150, 0.4);
     font-size: 26px;
-    color: #fff;
+    color: var(--surface);
     line-height: 1;
     border: none;
     cursor: pointer;
@@ -937,7 +980,7 @@ label {
 
 .swipe-delete-btn {
   background: var(--c-red);
-  color: white;
+  color: var(--surface);
   border: none;
   padding: 0 22px;
   font-size: 14px;
@@ -952,8 +995,8 @@ label {
   transition: background 0.15s;
   min-width: 72px;
 }
-.swipe-delete-btn:hover { background: #d63226; opacity: 1; }
-.swipe-delete-btn:active { background: #c0392b; transform: none; }
+.swipe-delete-btn:hover { background: var(--c-red-hover, var(--c-red)); opacity: 0.9; }
+.swipe-delete-btn:active { background: var(--c-red); transform: none; opacity: 0.85; }
 
 .swipe-row-content {
   position: relative;
@@ -1165,34 +1208,34 @@ label {
 }
 .skeleton-cell.compact { padding: 18px 16px; }
 
-/* ─── Dark Mode ─── */
+/* ─── Dark Mode (Morandi) ─── */
 @media (prefers-color-scheme: dark) {
   :root {
-    --c-blue:        #0a84ff;
-    --c-blue-hover:  #409cff;
-    --c-blue-dim:    rgba(10, 132, 255, 0.20);
-    --c-green:       #32d74b;
-    --c-green-dim:   rgba(50, 215, 75, 0.18);
-    --c-orange:      #ff9f0a;
-    --c-orange-dim:  rgba(255, 159, 10, 0.18);
-    --c-red:         #ff453a;
-    --c-red-dim:     rgba(255, 69, 58, 0.18);
-    --c-purple:      #7d7aff;
-    --c-purple-dim:  rgba(125, 122, 255, 0.18);
-    --c-indigo:      #5e5ce6;
+    --c-blue:        #9eb2ac;
+    --c-blue-hover:  #b5c7c1;
+    --c-blue-dim:    rgba(158, 178, 172, 0.18);
+    --c-green:       #b5c4ac;
+    --c-green-dim:   rgba(181, 196, 172, 0.18);
+    --c-orange:      #d4b299;
+    --c-orange-dim:  rgba(212, 178, 153, 0.20);
+    --c-red:         #d19c99;
+    --c-red-dim:     rgba(209, 156, 153, 0.18);
+    --c-purple:      #b2a8bb;
+    --c-purple-dim:  rgba(178, 168, 187, 0.18);
+    --c-indigo:      #a0a4b8;
 
-    --bg:        #000000;
-    --surface:   #1c1c1e;
-    --surface-2: #2c2c2e;
-    --surface-3: rgba(118, 118, 128, 0.24);
+    --bg:        #1f1d1a;
+    --surface:   #2a2724;
+    --surface-2: #34302c;
+    --surface-3: rgba(237, 230, 218, 0.07);
 
-    --text-1: #f5f5f7;
-    --text-2: rgba(235, 235, 245, 0.7);
-    --text-3: #98989f;
-    --text-4: #636366;
+    --text-1: #ede6da;
+    --text-2: rgba(237, 230, 218, 0.72);
+    --text-3: #a09990;
+    --text-4: #6e6760;
 
-    --border:        rgba(84, 84, 88, 0.45);
-    --border-strong: rgba(84, 84, 88, 0.7);
+    --border:        rgba(237, 230, 218, 0.12);
+    --border-strong: rgba(237, 230, 218, 0.22);
 
     --shadow-s:  0 1px 4px rgba(0,0,0,0.4),   0 2px 8px rgba(0,0,0,0.3);
     --shadow-m:  0 4px 16px rgba(0,0,0,0.45), 0 1px 4px rgba(0,0,0,0.3);
@@ -1210,24 +1253,32 @@ label {
     border-top-color: var(--border) !important;
   }
 
-  /* Inverted buttons (text-1 was dark, on dark bg it'd vanish) */
+  /* Primary buttons use sage-teal on both themes */
   .nav-btn-primary,
   .small-action-btn {
-    background: #ffffff;
-    color: #000000;
+    background: var(--c-blue);
+    color: var(--bg);
   }
   .nav-btn-primary:hover,
   .small-action-btn:hover { opacity: 0.85; }
 
-  /* Calendar active cell — invert too */
-  .calendar-cell.active {
-    background: #ffffff;
-    color: #000000;
+  /* Calendar heat cells — darker variants */
+  .calendar-cell.heat-1 {
+    background: rgba(158, 178, 172, 0.18);
+    color: var(--text-1);
   }
-  .calendar-cell.today.active {
-    background: var(--c-green);
-    color: #000000;
+  .calendar-cell.heat-2 {
+    background: rgba(158, 178, 172, 0.38);
+    color: var(--text-1);
   }
+  .calendar-cell.heat-3 {
+    background: var(--c-blue);
+    color: var(--bg);
+  }
+  .calendar-legend .lg-chip.heat-1 { background: rgba(158, 178, 172, 0.18); }
+  .calendar-legend .lg-chip.heat-2 { background: rgba(158, 178, 172, 0.38); }
+  .calendar-legend .lg-chip.heat-3 { background: var(--c-blue); }
+  .calendar-cell:not(.future):not(.empty):hover { background: rgba(255,255,255,0.06); }
 
   /* Hover backgrounds need to be lighter, not darker */
   .calendar-nav-btn:hover { background: rgba(255,255,255,0.12); }
@@ -1252,7 +1303,7 @@ label {
 
   /* Form focus glow */
   input:focus, textarea:focus, select:focus {
-    box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.32);
+    box-shadow: 0 0 0 3px rgba(158, 178, 172, 0.32);
   }
 
   /* Skeleton shimmer needs to be visible on dark */
