@@ -448,6 +448,106 @@ router.get('/last/:exercise', auth, async (req, res) => {
   } catch { res.status(500).send('Server Error'); }
 });
 
+// GET /api/workouts/recommend/:exercise — 规则教练推荐（RPE 自调节）
+// 返回 { weight, reps, reason, rule, history:[最近3次摘要] }
+const { recommend, sessionSummary } = require('../utils/progressionRules');
+router.get('/recommend/:exercise', auth, async (req, res) => {
+  try {
+    const records = await Workout.find({
+      user: req.user.id,
+      exercise: req.params.exercise,
+      type: 'strength',
+    }).sort({ date: -1 }).limit(5);
+
+    const history = records
+      .map(sessionSummary)
+      .filter(Boolean); // 倒序：最新在前
+
+    const rec = recommend(history, req.params.exercise);
+    res.json({
+      ...rec,
+      history: history.slice(0, 3),
+    });
+  } catch (e) {
+    console.error('[recommend]', e);
+    res.status(500).json({ msg: 'Server Error' });
+  }
+});
+
+// GET /api/workouts/today-suggestions — 今日建议动作（3个）
+// 按肌群最近训练时间排序，最久没练的优先；返回含理由
+router.get('/today-suggestions', auth, async (req, res) => {
+  try {
+    const since = new Date();
+    since.setDate(since.getDate() - 14);
+    const recent = await Workout.find({
+      user: req.user.id,
+      type: 'strength',
+      date: { $gte: since },
+    }).sort({ date: -1 }).lean();
+
+    const now = new Date();
+    // 每个肌群 → 最近训练时间
+    const groupLast = {};
+    for (const w of recent) {
+      const muscles = EXERCISE_MUSCLE_MAP[w.exercise];
+      if (!muscles) continue;
+      for (const m of muscles) {
+        if (!groupLast[m] || new Date(w.date) > new Date(groupLast[m])) {
+          groupLast[m] = w.date;
+        }
+      }
+    }
+
+    // 主要肌群（参与建议的）
+    const primaryGroups = ['胸','背','腿','肩','二头','三头','股四','腿后侧','臀','核心','腹直肌'];
+    const ranked = primaryGroups.map(g => {
+      const last = groupLast[g];
+      const daysSince = last
+        ? Math.floor((now - new Date(last)) / 86400000)
+        : 999;
+      return { muscle: g, last, daysSince };
+    }).sort((a, b) => b.daysSince - a.daysSince);
+
+    // 每个肌群挑一个"代表动作"（用户历史上练过的优先）
+    const userHistoryEx = new Set(recent.map(w => w.exercise));
+    const pickExerciseFor = (muscle) => {
+      const candidates = Object.entries(EXERCISE_MUSCLE_MAP)
+        .filter(([, ms]) => ms[0] === muscle)
+        .map(([ex]) => ex);
+      const familiar = candidates.find(c => userHistoryEx.has(c));
+      return familiar || candidates[0] || null;
+    };
+
+    const picked = [];
+    const usedMuscles = new Set();
+    for (const r of ranked) {
+      if (picked.length >= 3) break;
+      if (usedMuscles.has(r.muscle)) continue;
+      const ex = pickExerciseFor(r.muscle);
+      if (!ex) continue;
+      picked.push({
+        exercise: ex,
+        muscle: r.muscle,
+        daysSince: r.daysSince,
+        reason: r.daysSince >= 999
+          ? `${r.muscle} 还没练过，今天可以开始`
+          : r.daysSince >= 7
+          ? `${r.muscle} 已 ${r.daysSince} 天没练，该安排了`
+          : r.daysSince >= 3
+          ? `${r.muscle} 上次是 ${r.daysSince} 天前，恢复得差不多`
+          : `${r.muscle} 近期练过，保持节奏`,
+      });
+      usedMuscles.add(r.muscle);
+    }
+
+    res.json(picked);
+  } catch (e) {
+    console.error('[today-suggestions]', e);
+    res.status(500).json({ msg: 'Server Error' });
+  }
+});
+
 // POST /api/workouts — 新增训练
 router.post('/', auth, async (req, res) => {
   try {
