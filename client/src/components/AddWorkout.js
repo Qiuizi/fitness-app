@@ -1116,6 +1116,8 @@ const AddWorkout = () => {
   }
 
   // ════ 记录组数页（Gym Mode）════
+  const currentIdx = completedExercises.length;
+  const totalExercises = currentIdx + 1 + templateQueue.length;
   return (
     <div style={{ maxWidth: 'var(--content-w)', margin: '0 auto', padding: '0 16px calc(120px + env(safe-area-inset-bottom))' }}>
       {showFlash && <SetCompleteFlash onDone={onFlashDone} />}
