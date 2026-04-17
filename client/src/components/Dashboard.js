@@ -895,6 +895,62 @@ const CreatePlanModal = ({ templates, onClose, onSave }) => {
   );
 };
 
+// ─── 自动周计划向导 ─────────────────────────────────────────────────────────
+const PlanWizardModal = ({ onClose, onGenerate }) => {
+  const [goal, setGoal] = useState('hypertrophy');
+  const [selectedDays, setSelectedDays] = useState([1, 3, 5]);
+  const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
+  const goals = [
+    { key: 'strength', label: '力量', desc: '大重量低次数', icon: '🏋️' },
+    { key: 'hypertrophy', label: '增肌', desc: '中等重量高次数', icon: '💪' },
+    { key: 'maintain', label: '维持', desc: '保持现有水平', icon: '⚖️' },
+  ];
+  const toggleDay = (d) => {
+    setSelectedDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d].sort());
+  };
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+          <h3 style={{ margin:0, fontSize:18 }}>生成周计划</h3>
+          <button onClick={onClose} style={{ background:'none', border:'none', fontSize:20, color:'var(--text-3)', cursor:'pointer' }}>×</button>
+        </div>
+        <div style={{ marginBottom:20 }}>
+          <div style={{ fontSize:13, fontWeight:700, marginBottom:10, color:'var(--text-2)' }}>训练目标</div>
+          <div style={{ display:'flex', gap:8 }}>
+            {goals.map(g => (
+              <div key={g.key} onClick={() => setGoal(g.key)}
+                style={{ flex:1, padding:'14px 10px', borderRadius:'var(--r-l)', border:`2px solid ${goal === g.key ? 'var(--c-blue)' : 'var(--border)'}`, background: goal === g.key ? 'var(--c-blue-dim)' : 'var(--surface)', cursor:'pointer', textAlign:'center', transition:'all .15s' }}>
+                <div style={{ fontSize:24, marginBottom:6 }}>{g.icon}</div>
+                <div style={{ fontSize:14, fontWeight:700, color: goal === g.key ? 'var(--c-blue)' : 'var(--text-1)' }}>{g.label}</div>
+                <div style={{ fontSize:10, color:'var(--text-3)', marginTop:2 }}>{g.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ marginBottom:24 }}>
+          <div style={{ fontSize:13, fontWeight:700, marginBottom:10, color:'var(--text-2)' }}>训练日（选 2-6 天）</div>
+          <div style={{ display:'flex', gap:6 }}>
+            {dayNames.map((name, i) => (
+              <div key={i} onClick={() => toggleDay(i)}
+                style={{ flex:1, height:44, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:'var(--r-m)', border:`2px solid ${selectedDays.includes(i) ? 'var(--c-blue)' : 'var(--border)'}`, background: selectedDays.includes(i) ? 'var(--c-blue-dim)' : 'var(--surface)', cursor:'pointer', fontSize:14, fontWeight:700, color: selectedDays.includes(i) ? 'var(--c-blue)' : 'var(--text-3)', transition:'all .15s' }}>
+                {name}
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize:11, color:'var(--text-4)', marginTop:6 }}>
+            已选 {selectedDays.length} 天 · {selectedDays.length <= 2 ? '上下肢分化' : selectedDays.length === 3 ? '推拉腿分化' : selectedDays.length <= 4 ? '上下肢×2' : selectedDays.length === 5 ? '推拉腿+上下' : '推拉腿×2'}
+          </div>
+        </div>
+        <button disabled={selectedDays.length < 2} onClick={() => onGenerate(goal, selectedDays)}
+          style={{ width:'100%', padding:'14px', fontSize:15, fontWeight:700, borderRadius:'var(--r-l)', background:'var(--c-blue)', color:'var(--surface)', border:'none', cursor:'pointer', opacity: selectedDays.length < 2 ? 0.5 : 1 }}>
+          生成计划
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // ─── 主 Dashboard ─────────────────────────────────────────────────────────────
 const Dashboard = () => {
   const { token, user, logout } = useContext(AuthContext);
@@ -916,6 +972,10 @@ const Dashboard = () => {
   const [progressPhotos, setProgressPhotos] = useState([]);
   const [reminderSettings, setReminderSettings] = useState(null);
   const [todaySuggestions, setTodaySuggestions] = useState([]);
+  const [autoPlan, setAutoPlan] = useState(null);
+  const [showPlanWizard, setShowPlanWizard] = useState(false);
+  const [progressReport, setProgressReport] = useState(null);
+  const [planSwapping, setPlanSwapping] = useState(null);
 
   const [period, setPeriod]             = useState('all');
   const [activeTab, setActiveTab]       = useState('overview');
@@ -940,7 +1000,7 @@ const Dashboard = () => {
     if (!token) return;
     setLoading(true);
     try {
-      const [wRes, sRes, prRes, insRes, bwRes, profRes, mhRes, mvRes, tpRes, tsRes] = await Promise.all([
+      const [wRes, sRes, prRes, insRes, bwRes, profRes, mhRes, mvRes, tpRes, tsRes, apRes, rpRes] = await Promise.all([
         fetch(`${API_URL}/api/workouts?period=${period}`, { headers: { 'x-auth-token': token } }),
         fetch(`${API_URL}/api/workouts/stats`,            { headers: { 'x-auth-token': token } }),
         fetch(`${API_URL}/api/workouts/pr`,               { headers: { 'x-auth-token': token } }),
@@ -951,6 +1011,8 @@ const Dashboard = () => {
         fetch(`${API_URL}/api/workouts/muscle-volume?weeks=4`,           { headers: { 'x-auth-token': token } }),
         fetch(`${API_URL}/api/workouts/training-plans`,                   { headers: { 'x-auth-token': token } }),
         fetch(`${API_URL}/api/workouts/today-suggestions`,                { headers: { 'x-auth-token': token } }),
+        fetch(`${API_URL}/api/workouts/auto-plan`,                        { headers: { 'x-auth-token': token } }),
+        fetch(`${API_URL}/api/workouts/progress-report`,                  { headers: { 'x-auth-token': token } }),
       ]);
       if (wRes.ok)    setWorkouts(await wRes.json());
       if (sRes.ok)    setStats(await sRes.json());
@@ -961,6 +1023,8 @@ const Dashboard = () => {
       if (mvRes.ok)   setMuscleVolume(await mvRes.json());
       if (tpRes.ok)   setTrainingPlans(await tpRes.json());
       if (tsRes.ok)   setTodaySuggestions(await tsRes.json());
+      if (apRes.ok)   { const ap = await apRes.json(); setAutoPlan(ap); }
+      if (rpRes.ok)   setProgressReport(await rpRes.json());
       if (profRes.ok) {
         const p = await profRes.json();
         setTemplates(p.templates || []);
@@ -974,6 +1038,17 @@ const Dashboard = () => {
   }, [token, period]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // ── 里程碑庆祝
+  const milestoneCelebrated = useRef(false);
+  useEffect(() => {
+    if (milestoneCelebrated.current || !progressReport?.milestones?.length) return;
+    milestoneCelebrated.current = true;
+    const newest = progressReport.milestones[0];
+    if (newest) {
+      setTimeout(() => toast.success(`🏅 达成里程碑: ${newest.label}`), 1500);
+    }
+  }, [progressReport, toast]);
 
   // ── 训练提醒通知
   useEffect(() => {
@@ -1173,6 +1248,55 @@ const Dashboard = () => {
     }
   };
 
+  // ── 自动周计划 ──
+  const handleGenerateAutoPlan = async (goal, availableDays) => {
+    try {
+      const res = await fetch(`${API_URL}/api/workouts/auto-plan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body: JSON.stringify({ goal, availableDays }),
+      });
+      if (!res.ok) throw new Error();
+      const plan = await res.json();
+      setAutoPlan(plan);
+      setShowPlanWizard(false);
+      toast.success('周计划已生成');
+    } catch (e) {
+      console.error(e);
+      toast.error('生成计划失败');
+    }
+  };
+
+  const handleSwapExercise = async (dayIndex, exerciseIndex, newExercise) => {
+    try {
+      const res = await fetch(`${API_URL}/api/workouts/auto-plan/swap`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body: JSON.stringify({ dayIndex, exerciseIndex, newExercise }),
+      });
+      if (!res.ok) throw new Error();
+      const updated = await res.json();
+      setAutoPlan(updated);
+      setPlanSwapping(null);
+      toast.success('动作已替换');
+    } catch (e) {
+      toast.error('替换失败');
+    }
+  };
+
+  const handleDeleteAutoPlan = async () => {
+    try {
+      await fetch(`${API_URL}/api/workouts/auto-plan`, {
+        method: 'DELETE',
+        headers: { 'x-auth-token': token },
+      });
+      setAutoPlan(null);
+      toast.success('周计划已删除');
+    } catch (e) {
+      toast.error('删除失败');
+    }
+  };
+
   // ── 数据处理 ──
   const allActiveDates = workouts.map(w => toLocalDateStr(w.date));
 
@@ -1342,6 +1466,65 @@ const Dashboard = () => {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* 月度报告 */}
+          {progressReport && progressReport.thisMonth && (
+            <div style={{ background:'var(--surface)', borderRadius:'var(--r-xl)', padding:16, border:'1px solid var(--border)', marginBottom:14 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                  <h3 style={{ margin:0, fontSize:16 }}>月度报告</h3>
+                  <span style={{ fontSize:10, fontWeight:700, background:'var(--c-green-dim)', color:'var(--c-green)', padding:'2px 8px', borderRadius:99 }}>
+                    {new Date().toLocaleDateString('zh-CN', { month:'long' })}
+                  </span>
+                </div>
+              </div>
+              {/* Volume comparison */}
+              <div style={{ display:'flex', gap:8, marginBottom:12 }}>
+                <div style={{ flex:1, padding:'12px', background:'var(--surface-3)', borderRadius:'var(--r-m)', textAlign:'center' }}>
+                  <div style={{ fontSize:11, color:'var(--text-3)', marginBottom:4 }}>本月总量</div>
+                  <div style={{ fontSize:18, fontWeight:800, color:'var(--text-1)' }}>{(progressReport.thisMonth.totalVolume / 1000).toFixed(1)}</div>
+                  <div style={{ fontSize:10, color:'var(--text-4)' }}>吨</div>
+                </div>
+                <div style={{ flex:1, padding:'12px', background:'var(--surface-3)', borderRadius:'var(--r-m)', textAlign:'center' }}>
+                  <div style={{ fontSize:11, color:'var(--text-3)', marginBottom:4 }}>训练天数</div>
+                  <div style={{ fontSize:18, fontWeight:800, color:'var(--text-1)' }}>{progressReport.thisMonth.trainingDays}</div>
+                  <div style={{ fontSize:10, color:'var(--text-4)' }}>天</div>
+                </div>
+                <div style={{ flex:1, padding:'12px', background:'var(--surface-3)', borderRadius:'var(--r-m)', textAlign:'center' }}>
+                  <div style={{ fontSize:11, color:'var(--text-3)', marginBottom:4 }}>总量变化</div>
+                  <div style={{ fontSize:18, fontWeight:800, color: progressReport.volumeDelta > 0 ? 'var(--c-green)' : progressReport.volumeDelta < 0 ? 'var(--c-red)' : 'var(--text-3)' }}>
+                    {progressReport.volumeDelta > 0 ? '+' : ''}{progressReport.volumeDelta}%
+                  </div>
+                  <div style={{ fontSize:10, color:'var(--text-4)' }}>vs上月</div>
+                </div>
+              </div>
+              {/* e1RM highlights */}
+              {progressReport.e1rmHighlights && progressReport.e1rmHighlights.length > 0 && (
+                <div style={{ marginBottom:8 }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:'var(--text-2)', marginBottom:8 }}>力量进步 Top</div>
+                  {progressReport.e1rmHighlights.slice(0, 3).map((h, i) => (
+                    <div key={i} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', borderBottom: i < 2 ? '1px solid var(--border)' : 'none' }}>
+                      <span style={{ fontSize:13, fontWeight:600 }}>{h.exercise}</span>
+                      <div style={{ textAlign:'right' }}>
+                        <span style={{ fontSize:13, fontWeight:800, color:'var(--c-green)' }}>+{h.improvement.toFixed(1)}kg</span>
+                        <span style={{ fontSize:10, color:'var(--text-4)', marginLeft:6 }}>e1RM {h.current.toFixed(1)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Milestones */}
+              {progressReport.milestones && progressReport.milestones.length > 0 && (
+                <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginTop:8 }}>
+                  {progressReport.milestones.map((m, i) => (
+                    <span key={i} style={{ fontSize:11, fontWeight:700, padding:'4px 10px', borderRadius:99, background:'var(--c-orange-dim)', color:'var(--c-orange)' }}>
+                      🏅 {m.label}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -1554,6 +1737,78 @@ const Dashboard = () => {
       // ═══ 计划（模板 + 多周计划）═══
       case 'plan': return (
         <div style={{ maxWidth:'var(--max-w)', margin:'0 auto', padding:'0 12px 20px' }}>
+          {/* 智能周计划 */}
+          <div style={{ marginBottom:24 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <span style={{ fontSize:15, fontWeight:700 }}>智能周计划</span>
+                <span style={{ fontSize:10, fontWeight:700, background:'var(--c-blue-dim)', color:'var(--c-blue)', padding:'2px 8px', borderRadius:99 }}>规则教练</span>
+              </div>
+              {autoPlan ? (
+                <button onClick={() => setShowPlanWizard(true)} style={{ padding:'6px 14px', fontSize:13, fontWeight:600, borderRadius:99, background:'var(--c-blue-dim)', color:'var(--c-blue)', border:'none', cursor:'pointer' }}>重新生成</button>
+              ) : null}
+            </div>
+            {!autoPlan ? (
+              <div style={{ background:'var(--surface)', border:'1.5px dashed var(--border)', borderRadius:'var(--r-xl)', padding:'32px 20px', textAlign:'center' }}>
+                <div style={{ fontSize:40, marginBottom:12 }}>📋</div>
+                <div style={{ fontSize:15, fontWeight:700, marginBottom:6 }}>一键生成个性化周计划</div>
+                <div style={{ fontSize:12, color:'var(--text-3)', marginBottom:16, lineHeight:1.6 }}>根据你的训练目标和可用天数<br/>自动安排动作、组次和重量</div>
+                <button onClick={() => setShowPlanWizard(true)} style={{ padding:'12px 28px', fontSize:14, fontWeight:700, borderRadius:99, background:'var(--c-blue)', color:'var(--surface)', border:'none', cursor:'pointer' }}>开始设置</button>
+              </div>
+            ) : (
+              <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r-xl)', padding:'16px', overflow:'hidden' }}>
+                {/* Mesocycle header */}
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+                  <div>
+                    <span style={{ fontSize:13, fontWeight:700 }}>
+                      {autoPlan.goal === 'strength' ? '力量' : autoPlan.goal === 'hypertrophy' ? '增肌' : '维持'}周期
+                    </span>
+                    <span style={{ fontSize:11, color:'var(--text-3)', marginLeft:8 }}>
+                      第 {autoPlan.weekOfCycle} / {autoPlan.totalWeeks || 4} 周
+                      {autoPlan.isDeload && <span style={{ color:'var(--c-orange)', fontWeight:700, marginLeft:4 }}>· 减载周</span>}
+                    </span>
+                  </div>
+                  <button onClick={handleDeleteAutoPlan} style={{ background:'none', border:'none', fontSize:12, color:'var(--text-4)', cursor:'pointer' }}>删除</button>
+                </div>
+                {/* Mesocycle progress bar */}
+                <div style={{ display:'flex', gap:4, marginBottom:16 }}>
+                  {[1,2,3,4].map(w => (
+                    <div key={w} style={{ flex:1, height:6, borderRadius:99, background: w <= autoPlan.weekOfCycle ? (w === 4 ? 'var(--c-orange)' : 'var(--c-blue)') : 'var(--surface-3)', transition:'background .3s' }} />
+                  ))}
+                </div>
+                {/* Day cards */}
+                {autoPlan.days && autoPlan.days.map((day, di) => (
+                  <div key={di} style={{ marginBottom: di < autoPlan.days.length - 1 ? 12 : 0 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+                      <span style={{ fontSize:13, fontWeight:700 }}>{day.dayLabel}</span>
+                      <span style={{ fontSize:10, fontWeight:600, color:'var(--text-4)', background:'var(--surface-3)', padding:'2px 8px', borderRadius:99 }}>
+                        {day.type === 'push' ? '推' : day.type === 'pull' ? '拉' : day.type === 'legs' ? '腿' : day.type === 'upper' ? '上肢' : '下肢'}
+                      </span>
+                    </div>
+                    <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                      {day.exercises && day.exercises.map((ex, ei) => (
+                        <div key={ei} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', background:'var(--surface-3)', borderRadius:'var(--r-m)' }}>
+                          <div style={{ width:6, height:6, borderRadius:'50%', background: ex.role === 'compound' ? 'var(--c-blue)' : 'var(--c-purple)', flexShrink:0 }} />
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontSize:13, fontWeight:700, marginBottom:2 }}>{ex.exercise}</div>
+                            <div style={{ fontSize:11, color:'var(--text-3)' }}>
+                              {ex.sets}×{ex.reps} {ex.weight ? `@ ${ex.weight}kg` : ''}
+                              {ex.reason && <span style={{ marginLeft:6, color:'var(--text-4)' }}>· {ex.reason}</span>}
+                            </div>
+                          </div>
+                          <button onClick={() => setPlanSwapping({ dayIndex: di, exerciseIndex: ei, current: ex.exercise, muscles: ex.muscles })}
+                            style={{ background:'none', border:'none', fontSize:11, color:'var(--c-blue)', cursor:'pointer', fontWeight:600, flexShrink:0, padding:'4px 8px' }}>换</button>
+                          <button onClick={() => navigate('/add', { state: { preselectExercise: ex.exercise } })}
+                            style={{ background:'none', border:'none', fontSize:14, color:'var(--text-4)', cursor:'pointer', flexShrink:0 }}>›</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* 训练模板 */}
           <div style={{ marginBottom:24 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
@@ -1835,6 +2090,21 @@ const Dashboard = () => {
       {showProfile && <ProfileModal onClose={() => setShowProfile(false)} onSave={handleSaveProfile} onLogout={logout} currentProfile={userProfile} reminderSettings={reminderSettings} onSaveReminder={handleSaveReminder} />}
       {editWorkout && <EditWorkoutModal workout={editWorkout} onClose={() => setEditWorkout(null)} onSave={(newSets) => handleSaveEdit(newSets)} />}
       {showCreatePlan && <CreatePlanModal templates={templates} onClose={() => setShowCreatePlan(false)} onSave={handleCreatePlan} />}
+      {showPlanWizard && <PlanWizardModal onClose={() => setShowPlanWizard(false)} onGenerate={handleGenerateAutoPlan} />}
+      {planSwapping && (
+        <div className="modal-overlay" onClick={() => setPlanSwapping(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth:360 }}>
+            <h3 style={{ margin:'0 0 12px', fontSize:16 }}>替换动作</h3>
+            <div style={{ fontSize:12, color:'var(--text-3)', marginBottom:12 }}>当前: {planSwapping.current}</div>
+            <input id="swap-exercise-input" type="text" placeholder="输入新动作名称" style={{ width:'100%', padding:'12px', fontSize:14, borderRadius:'var(--r-m)', border:'1px solid var(--border)', background:'var(--surface)', color:'var(--text-1)', boxSizing:'border-box', marginBottom:12 }} />
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={() => setPlanSwapping(null)} style={{ flex:1, background:'var(--surface-3)', color:'var(--text-2)', border:'none', padding:'10px', borderRadius:'var(--r-m)', cursor:'pointer' }}>取消</button>
+              <button onClick={() => { const v = document.getElementById('swap-exercise-input')?.value?.trim(); if(v) handleSwapExercise(planSwapping.dayIndex, planSwapping.exerciseIndex, v); }}
+                style={{ flex:1, background:'var(--c-blue)', color:'var(--surface)', border:'none', padding:'10px', borderRadius:'var(--r-m)', cursor:'pointer', fontWeight:700 }}>确认</button>
+            </div>
+          </div>
+        </div>
+      )}
       {selectedDay && <DaySummaryModal date={selectedDay} data={daySummary} onClose={() => { setSelectedDay(null); setDaySummary(null); }} />}
       {showPhotos && <PhotosModal photos={progressPhotos} token={token} onClose={() => setShowPhotos(false)} onRefresh={() => fetchAll()} />}
 
