@@ -4,6 +4,7 @@ import { AuthContext } from '../App';
 import { API_URL } from '../config';
 import { useToast } from './Toast';
 import BodyCanvas from './BodyCanvas';
+import YearlyWrap from './YearlyWrap';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -979,6 +980,7 @@ const Dashboard = () => {
   const [planSwapping, setPlanSwapping] = useState(null);
   const [bodyMap, setBodyMap] = useState(null);
   const [bodyPeriod, setBodyPeriod] = useState('month');
+  const [showYearlyWrap, setShowYearlyWrap] = useState(false);
 
   const [period, setPeriod]             = useState('all');
   const [activeTab, setActiveTab]       = useState('overview');
@@ -1478,6 +1480,20 @@ const Dashboard = () => {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* 年度回顾入口 */}
+          {stats?.totalWorkouts >= 10 && (
+            <div onClick={() => setShowYearlyWrap(true)}
+              style={{ background:'linear-gradient(135deg, #3a4a52 0%, #1a252c 100%)', borderRadius:'var(--r-xl)', padding:'16px 18px', marginBottom:14, cursor:'pointer', display:'flex', alignItems:'center', gap:14, boxShadow:'0 6px 20px rgba(26,37,44,0.25)', position:'relative', overflow:'hidden' }}>
+              <div style={{ fontSize:32 }}>📖</div>
+              <div style={{ flex:1, color:'#fff' }}>
+                <div style={{ fontSize:11, fontWeight:700, opacity:0.75, letterSpacing:'0.15em', textTransform:'uppercase' }}>IRON WRAPPED</div>
+                <div style={{ fontSize:16, fontWeight:800, marginTop:2 }}>{new Date().getFullYear()} 年度回顾</div>
+                <div style={{ fontSize:11, opacity:0.7, marginTop:2 }}>滑动查看你的健身故事</div>
+              </div>
+              <div style={{ color:'rgba(255,255,255,0.5)', fontSize:20 }}>›</div>
             </div>
           )}
 
@@ -2106,6 +2122,7 @@ const Dashboard = () => {
       {editWorkout && <EditWorkoutModal workout={editWorkout} onClose={() => setEditWorkout(null)} onSave={(newSets) => handleSaveEdit(newSets)} />}
       {showCreatePlan && <CreatePlanModal templates={templates} onClose={() => setShowCreatePlan(false)} onSave={handleCreatePlan} />}
       {showPlanWizard && <PlanWizardModal onClose={() => setShowPlanWizard(false)} onGenerate={handleGenerateAutoPlan} />}
+      {showYearlyWrap && <YearlyWrap token={token} onClose={() => setShowYearlyWrap(false)} />}
       {planSwapping && (
         <div className="modal-overlay" onClick={() => setPlanSwapping(null)}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth:360 }}>

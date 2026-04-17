@@ -838,6 +838,150 @@ router.get('/body-map', auth, async (req, res) => {
   } catch (e) { console.error('[body-map]', e); res.status(500).send('Server Error'); }
 });
 
+// GET /api/workouts/yearly-wrap?year=YYYY — 年度回顾聚合
+router.get('/yearly-wrap', auth, async (req, res) => {
+  try {
+    const year = parseInt(req.query.year) || new Date().getFullYear();
+    const start = new Date(year, 0, 1);
+    const end = new Date(year + 1, 0, 1);
+    const workouts = await Workout.find({
+      user: req.user.id,
+      date: { $gte: start, $lt: end },
+    }).sort({ date: 1 });
+
+    if (!workouts.length) {
+      return res.json({ year, hasData: false, totalWorkouts: 0 });
+    }
+
+    // 基础统计
+    const trainingDays = new Set(workouts.map(w => toDateStr(w.date))).size;
+    const totalVolume = workouts
+      .filter(w => w.type === 'strength')
+      .reduce((a, w) => a + w.sets.reduce((b, s) => b + (s.weight || 0) * (s.reps || 0), 0), 0);
+    const totalSets = workouts
+      .filter(w => w.type === 'strength')
+      .reduce((a, w) => a + w.sets.length, 0);
+    const totalDuration = workouts.reduce((a, w) => a + (w.duration || 0), 0);
+
+    // 连胜
+    const longestStreak = (() => {
+      const days = [...new Set(workouts.map(w => toDateStr(w.date)))].sort();
+      let best = 0, cur = 1;
+      for (let i = 1; i < days.length; i++) {
+        const d1 = new Date(days[i - 1]);
+        const d2 = new Date(days[i]);
+        const diff = Math.round((d2 - d1) / 86400000);
+        if (diff === 1) cur++;
+        else { best = Math.max(best, cur); cur = 1; }
+      }
+      return Math.max(best, cur);
+    })();
+
+    // 最大 PR (单次 set 最大 e1RM)
+    let biggestPR = null;
+    for (const w of workouts.filter(w => w.type === 'strength')) {
+      for (const s of w.sets) {
+        if (s.isWarmup) continue;
+        if (!s.weight || !s.reps) continue;
+        const e1rm = s.weight * (1 + s.reps / 30);
+        if (!biggestPR || e1rm > biggestPR.e1rm) {
+          biggestPR = { exercise: w.exercise, weight: s.weight, reps: s.reps, e1rm: Math.round(e1rm * 10) / 10, date: w.date };
+        }
+      }
+    }
+
+    // Top 动作 (按 session 次数)
+    const exerciseCount = {};
+    for (const w of workouts) {
+      exerciseCount[w.exercise] = (exerciseCount[w.exercise] || 0) + 1;
+    }
+    const topExercises = Object.entries(exerciseCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([exercise, count]) => ({ exercise, count }));
+
+    // 肌群分布 (按组数)
+    const muscleSets = {};
+    for (const w of workouts.filter(w => w.type === 'strength')) {
+      const muscles = EXERCISE_MUSCLE_MAP[w.exercise] || [];
+      const setsCount = w.sets.filter(s => !s.isWarmup).length || w.sets.length;
+      for (const m of muscles) {
+        muscleSets[m] = (muscleSets[m] || 0) + setsCount;
+      }
+    }
+    const muscleDistribution = Object.entries(muscleSets)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([muscle, sets]) => ({ muscle, sets }));
+
+    // 月度分布
+    const monthly = new Array(12).fill(0);
+    for (const w of workouts) {
+      monthly[new Date(w.date).getMonth()]++;
+    }
+    const bestMonth = monthly.indexOf(Math.max(...monthly));
+
+    // 成长: top 1 动作年初 vs 年末 e1RM
+    let growth = null;
+    if (topExercises.length > 0) {
+      const topEx = topExercises[0].exercise;
+      const sessions = workouts.filter(w => w.exercise === topEx && w.type === 'strength');
+      if (sessions.length >= 2) {
+        const calc1RM = (sets) => {
+          let max = 0;
+          for (const s of sets) {
+            if (s.isWarmup || !s.weight || !s.reps) continue;
+            const e = s.weight * (1 + s.reps / 30);
+            if (e > max) max = e;
+          }
+          return max;
+        };
+        const first = calc1RM(sessions[0].sets);
+        const last = calc1RM(sessions[sessions.length - 1].sets);
+        if (first > 0 && last > 0) {
+          growth = {
+            exercise: topEx,
+            startE1RM: Math.round(first * 10) / 10,
+            endE1RM: Math.round(last * 10) / 10,
+            delta: Math.round((last - first) * 10) / 10,
+            pct: Math.round(((last - first) / first) * 100),
+          };
+        }
+      }
+    }
+
+    // 身份标签 (基于训练数据生成)
+    const identity = (() => {
+      if (trainingDays >= 200) return { label: '健身狂热者', icon: '🔥' };
+      if (trainingDays >= 120) return { label: '铁律执行者', icon: '💪' };
+      if (longestStreak >= 30) return { label: '连胜之王', icon: '👑' };
+      if (topExercises[0]?.count >= 40) return { label: '专注型选手', icon: '🎯' };
+      if (Object.keys(muscleSets).length >= 12) return { label: '全面发展派', icon: '🌟' };
+      if (biggestPR && biggestPR.e1rm >= 150) return { label: '力量怪兽', icon: '⚡' };
+      if (trainingDays >= 50) return { label: '坚持者', icon: '🏃' };
+      return { label: '入门探索者', icon: '🌱' };
+    })();
+
+    res.json({
+      year,
+      hasData: true,
+      totalWorkouts: workouts.length,
+      totalVolume: Math.round(totalVolume),
+      totalSets,
+      totalDuration,
+      trainingDays,
+      longestStreak,
+      biggestPR,
+      topExercises,
+      muscleDistribution,
+      monthly,
+      bestMonth,
+      growth,
+      identity,
+    });
+  } catch (e) { console.error('[yearly-wrap]', e); res.status(500).send('Server Error'); }
+});
+
 // ─── 训练编辑 ─────────────────────────────────────────────────────────────────
 
 // PUT /api/workouts/:id — 编辑训练记录
