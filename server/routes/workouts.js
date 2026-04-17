@@ -1081,4 +1081,212 @@ router.put('/reminder', auth, async (req, res) => {
   } catch { res.status(500).send('Server Error'); }
 });
 
+// ═══ v2.0: 自动周计划 ═══════════════════════════════════════════════════════
+const WeeklyPlan = require('../models/WeeklyPlan');
+const { generateWeekPlan } = require('../utils/planGenerator');
+
+// POST /api/workouts/auto-plan — 生成新周计划
+router.post('/auto-plan', auth, async (req, res) => {
+  try {
+    const { goal = 'hypertrophy', days = [1, 3, 5] } = req.body;
+
+    // 取最近 30 天训练历史
+    const since = new Date();
+    since.setDate(since.getDate() - 30);
+    const workouts = await Workout.find({
+      user: req.user.id, type: 'strength', date: { $gte: since },
+    }).sort({ date: -1 }).lean();
+
+    // 检查是否有激活的计划 → 确定 mesocycle 周数
+    const prev = await WeeklyPlan.findOne({ user: req.user.id, isActive: true });
+    let weekOfCycle = 1;
+    if (prev) {
+      weekOfCycle = (prev.weekOfCycle % 4) + 1; // 1→2→3→4→1
+      prev.isActive = false;
+      await prev.save();
+    }
+
+    const plan = generateWeekPlan(workouts, EXERCISE_MUSCLE_MAP, {
+      goal, days, weekOfCycle,
+    });
+
+    const doc = await WeeklyPlan.create({
+      user: req.user.id,
+      goal,
+      availableDays: days,
+      weekOfCycle,
+      isActive: true,
+      days: plan.days,
+    });
+
+    res.json({ ...plan, _id: doc._id });
+  } catch (e) {
+    console.error('[auto-plan]', e);
+    res.status(500).json({ msg: 'Server Error' });
+  }
+});
+
+// GET /api/workouts/auto-plan — 获取当前激活的周计划
+router.get('/auto-plan', auth, async (req, res) => {
+  try {
+    const plan = await WeeklyPlan.findOne({ user: req.user.id, isActive: true }).lean();
+    if (!plan) return res.json(null);
+    res.json({
+      _id: plan._id,
+      goal: plan.goal,
+      weekOfCycle: plan.weekOfCycle,
+      totalWeeks: 4,
+      isDeload: plan.weekOfCycle === 4,
+      days: plan.days,
+      availableDays: plan.availableDays,
+      createdAt: plan.createdAt,
+    });
+  } catch (e) {
+    console.error('[auto-plan get]', e);
+    res.status(500).json({ msg: 'Server Error' });
+  }
+});
+
+// PUT /api/workouts/auto-plan/swap — 替换计划中的某个动作
+router.put('/auto-plan/swap', auth, async (req, res) => {
+  try {
+    const { dayIndex, exerciseIndex, newExercise } = req.body;
+    const plan = await WeeklyPlan.findOne({ user: req.user.id, isActive: true });
+    if (!plan) return res.status(404).json({ msg: '没有激活的计划' });
+
+    const day = plan.days[dayIndex];
+    if (!day || !day.exercises[exerciseIndex]) return res.status(400).json({ msg: '无效的索引' });
+
+    const muscles = EXERCISE_MUSCLE_MAP[newExercise];
+    if (!muscles) return res.status(400).json({ msg: '未知动作' });
+
+    day.exercises[exerciseIndex].exercise = newExercise;
+    day.exercises[exerciseIndex].muscles = muscles;
+    day.exercises[exerciseIndex].reason = '手动替换';
+    day.exercises[exerciseIndex].rule = 'manual_swap';
+    plan.markModified('days');
+    await plan.save();
+
+    res.json(plan.days);
+  } catch (e) {
+    console.error('[auto-plan swap]', e);
+    res.status(500).json({ msg: 'Server Error' });
+  }
+});
+
+// DELETE /api/workouts/auto-plan — 停用当前周计划
+router.delete('/auto-plan', auth, async (req, res) => {
+  try {
+    await WeeklyPlan.updateMany({ user: req.user.id, isActive: true }, { isActive: false });
+    res.json({ msg: '已停用' });
+  } catch { res.status(500).send('Server Error'); }
+});
+
+// ═══ v2.0: 月度进步报告 ═════════════════════════════════════════════════════
+router.get('/progress-report', auth, async (req, res) => {
+  try {
+    const now = new Date();
+    const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+    const [thisW, lastW, allTime] = await Promise.all([
+      Workout.find({ user: req.user.id, date: { $gte: thisMonth } }).lean(),
+      Workout.find({ user: req.user.id, date: { $gte: lastMonth, $lt: thisMonth } }).lean(),
+      Workout.find({ user: req.user.id }).lean(),
+    ]);
+
+    const calcVolume = (ws) => ws.filter(w => w.type === 'strength')
+      .reduce((t, w) => t + w.sets.reduce((a, s) => a + (s.weight || 0) * (s.reps || 0), 0), 0);
+    const calcDays = (ws) => new Set(ws.map(w => new Date(w.date).toDateString())).size;
+
+    const thisVol = calcVolume(thisW);
+    const lastVol = calcVolume(lastW);
+    const volDelta = lastVol > 0 ? Math.round((thisVol - lastVol) / lastVol * 100) : null;
+
+    // e1RM per exercise — this month vs last month
+    const e1rmByEx = {};
+    for (const w of thisW) {
+      if (w.type !== 'strength') continue;
+      const bs = w.sets.filter(s => !s.isWarmup && s.weight > 0 && s.reps > 0)
+        .reduce((b, s) => {
+          const e = calc1RM(s.weight, s.reps);
+          return e > (b?.e1rm || 0) ? { weight: s.weight, reps: s.reps, e1rm: e } : b;
+        }, null);
+      if (!bs) continue;
+      if (!e1rmByEx[w.exercise] || bs.e1rm > e1rmByEx[w.exercise].current)
+        e1rmByEx[w.exercise] = { current: bs.e1rm, ...(e1rmByEx[w.exercise] || {}) };
+    }
+    for (const w of lastW) {
+      if (w.type !== 'strength') continue;
+      const bs = w.sets.filter(s => !s.isWarmup && s.weight > 0 && s.reps > 0)
+        .reduce((b, s) => {
+          const e = calc1RM(s.weight, s.reps);
+          return e > (b?.e1rm || 0) ? { weight: s.weight, reps: s.reps, e1rm: e } : b;
+        }, null);
+      if (!bs || !e1rmByEx[w.exercise]) continue;
+      if (!e1rmByEx[w.exercise].previous || bs.e1rm > e1rmByEx[w.exercise].previous)
+        e1rmByEx[w.exercise].previous = bs.e1rm;
+    }
+
+    const e1rmHighlights = Object.entries(e1rmByEx)
+      .filter(([, v]) => v.current && v.previous)
+      .map(([ex, v]) => ({
+        exercise: ex,
+        current: v.current,
+        previous: v.previous,
+        delta: Math.round((v.current - v.previous) / v.previous * 100),
+      }))
+      .sort((a, b) => b.delta - a.delta)
+      .slice(0, 5);
+
+    // 里程碑检测
+    const milestones = [];
+    const totalVol = calcVolume(allTime);
+    const totalDays = calcDays(allTime);
+    const totalWorkouts = allTime.length;
+    const volTons = totalVol / 1000;
+
+    if (volTons >= 1 && calcVolume(allTime.filter(w => new Date(w.date) < thisMonth)) / 1000 < 1) milestones.push({ type: 'volume', label: '累计举铁 1 吨！' });
+    if (volTons >= 10 && calcVolume(allTime.filter(w => new Date(w.date) < thisMonth)) / 1000 < 10) milestones.push({ type: 'volume', label: '累计举铁 10 吨！' });
+    if (volTons >= 50 && calcVolume(allTime.filter(w => new Date(w.date) < thisMonth)) / 1000 < 50) milestones.push({ type: 'volume', label: '累计举铁 50 吨！' });
+    if (volTons >= 100 && calcVolume(allTime.filter(w => new Date(w.date) < thisMonth)) / 1000 < 100) milestones.push({ type: 'volume', label: '累计举铁 100 吨！' });
+    if (totalWorkouts >= 100 && allTime.filter(w => new Date(w.date) < thisMonth).length < 100) milestones.push({ type: 'count', label: '第 100 次训练！' });
+    if (totalDays >= 30 && calcDays(allTime.filter(w => new Date(w.date) < thisMonth)) < 30) milestones.push({ type: 'days', label: '累计 30 个训练日！' });
+
+    // PR this month
+    const prsThisMonth = [];
+    for (const w of thisW) {
+      if (w.type !== 'strength') continue;
+      for (const s of w.sets) {
+        if (s.isWarmup || !s.weight || !s.reps) continue;
+        const e = calc1RM(s.weight, s.reps);
+        const older = allTime.filter(ow => ow.exercise === w.exercise && new Date(ow.date) < thisMonth);
+        const oldMax = older.reduce((m, ow) => {
+          const be = ow.sets.filter(os => !os.isWarmup && os.weight > 0 && os.reps > 0)
+            .reduce((bm, os) => Math.max(bm, calc1RM(os.weight, os.reps)), 0);
+          return Math.max(m, be);
+        }, 0);
+        if (e > oldMax && oldMax > 0) {
+          if (!prsThisMonth.find(p => p.exercise === w.exercise))
+            prsThisMonth.push({ exercise: w.exercise, e1rm: e, weight: s.weight, reps: s.reps });
+        }
+      }
+    }
+
+    res.json({
+      period: { from: thisMonth, to: now },
+      thisMonth: { volume: thisVol, days: calcDays(thisW), workouts: thisW.length },
+      lastMonth: { volume: lastVol, days: calcDays(lastW), workouts: lastW.length },
+      volumeDelta: volDelta,
+      e1rmHighlights,
+      prs: prsThisMonth.slice(0, 5),
+      milestones,
+      lifetime: { volume: totalVol, days: totalDays, workouts: totalWorkouts },
+    });
+  } catch (e) {
+    console.error('[progress-report]', e);
+    res.status(500).json({ msg: 'Server Error' });
+  }
+});
+
 module.exports = router;
