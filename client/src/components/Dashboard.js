@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../App';
 import { API_URL } from '../config';
 import { useToast } from './Toast';
+import BodyCanvas from './BodyCanvas';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -976,6 +977,8 @@ const Dashboard = () => {
   const [showPlanWizard, setShowPlanWizard] = useState(false);
   const [progressReport, setProgressReport] = useState(null);
   const [planSwapping, setPlanSwapping] = useState(null);
+  const [bodyMap, setBodyMap] = useState(null);
+  const [bodyPeriod, setBodyPeriod] = useState('month');
 
   const [period, setPeriod]             = useState('all');
   const [activeTab, setActiveTab]       = useState('overview');
@@ -1038,6 +1041,15 @@ const Dashboard = () => {
   }, [token, period]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // ── 身体地图数据 (独立 period)
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${API_URL}/api/workouts/body-map?period=${bodyPeriod}`, { headers: { 'x-auth-token': token } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setBodyMap(data); })
+      .catch(() => {});
+  }, [token, bodyPeriod]);
 
   // ── 里程碑庆祝
   const milestoneCelebrated = useRef(false);
@@ -1946,6 +1958,9 @@ const Dashboard = () => {
       // ═══ 肌群分析 ═══
       case 'muscles': return (
         <div style={{ maxWidth:'var(--max-w)', margin:'0 auto', padding:'0 12px 20px' }}>
+          {/* 交互式身体图 */}
+          <BodyCanvas bodyMap={bodyMap} period={bodyPeriod} onPeriodChange={setBodyPeriod} />
+
           {/* 肌群热力图 */}
           {muscleHeatmap && (
             <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r-xl)', padding:'16px', marginBottom:16 }}>

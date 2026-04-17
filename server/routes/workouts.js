@@ -778,6 +778,66 @@ router.get('/muscle-volume', auth, async (req, res) => {
   } catch (e) { console.error(e); res.status(500).send('Server Error'); }
 });
 
+// GET /api/workouts/body-map?period=week|month|all — 身体可视化数据
+router.get('/body-map', auth, async (req, res) => {
+  try {
+    const { period = 'month' } = req.query;
+    let filter = { user: req.user.id, type: 'strength' };
+    if (period === 'week') {
+      const d = new Date(); d.setDate(d.getDate() - 7);
+      filter.date = { $gte: d };
+    } else if (period === 'month') {
+      const d = new Date(); d.setMonth(d.getMonth() - 1);
+      filter.date = { $gte: d };
+    } else if (period === 'year') {
+      const d = new Date(); d.setFullYear(d.getFullYear() - 1);
+      filter.date = { $gte: d };
+    }
+    const workouts = await Workout.find(filter).sort({ date: -1 });
+
+    // 按肌群聚合: 组数、总容量、最后训练时间、动作容量分布
+    const muscleData = {};
+    for (const w of workouts) {
+      const muscles = EXERCISE_MUSCLE_MAP[w.exercise] || [];
+      if (!muscles.length) continue;
+      const workingSets = w.sets.filter(s => !s.isWarmup);
+      const setsCount = workingSets.length || w.sets.length;
+      const volume = w.sets.reduce((a, s) => a + (s.weight || 0) * (s.reps || 0), 0);
+
+      for (const m of muscles) {
+        if (!muscleData[m]) {
+          muscleData[m] = { sets: 0, volume: 0, lastDate: null, exerciseVol: {} };
+        }
+        muscleData[m].sets += setsCount;
+        muscleData[m].volume += volume;
+        if (!muscleData[m].lastDate || new Date(w.date) > new Date(muscleData[m].lastDate)) {
+          muscleData[m].lastDate = w.date;
+        }
+        muscleData[m].exerciseVol[w.exercise] = (muscleData[m].exerciseVol[w.exercise] || 0) + volume;
+      }
+    }
+
+    // 计算每个肌群 top 3 动作 + 归一化强度
+    const maxSets = Math.max(...Object.values(muscleData).map(d => d.sets), 1);
+    const result = {};
+    for (const [m, d] of Object.entries(muscleData)) {
+      const topExercises = Object.entries(d.exerciseVol)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([ex, vol]) => ({ exercise: ex, volume: Math.round(vol) }));
+      result[m] = {
+        sets: d.sets,
+        volume: Math.round(d.volume),
+        lastDate: d.lastDate,
+        intensity: Math.min(1, d.sets / (maxSets * 0.8)),
+        topExercises,
+      };
+    }
+
+    res.json({ muscles: result, period, maxSets });
+  } catch (e) { console.error('[body-map]', e); res.status(500).send('Server Error'); }
+});
+
 // ─── 训练编辑 ─────────────────────────────────────────────────────────────────
 
 // PUT /api/workouts/:id — 编辑训练记录
