@@ -303,26 +303,37 @@ const YearlyWrap = ({ token, year, onClose }) => {
     return c;
   }, [data, onClose]);
 
-  // 手势切换
+  // 手势切换 (手机为主: 左右滑动 or 点击左右 1/3 区域)
   const handleTouchStart = (e) => {
-    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
   };
   const handleTouchEnd = (e) => {
     const dx = e.changedTouches[0].clientX - touchStartRef.current.x;
     const dy = e.changedTouches[0].clientY - touchStartRef.current.y;
-    if (Math.abs(dx) < 40 || Math.abs(dy) > Math.abs(dx)) return;
-    if (dx < 0) next(); else prev();
+    const dt = Date.now() - touchStartRef.current.t;
+    // 轻点 (位移 < 10px, 时长 < 250ms) → 按触点位置前进/后退
+    if (Math.abs(dx) < 10 && Math.abs(dy) < 10 && dt < 250) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.changedTouches[0].clientX - rect.left;
+      if (x < rect.width * 0.33) prev();
+      else next();
+      return;
+    }
+    // 滑动 → 左右切换
+    if (Math.abs(dx) >= 40 && Math.abs(dx) > Math.abs(dy)) {
+      if (dx < 0) next(); else prev();
+    }
   };
 
   const next = () => setCardIdx(i => Math.min(i + 1, cards.length - 1));
   const prev = () => setCardIdx(i => Math.max(i - 1, 0));
 
-  // 点击区域切换 (左半边 prev, 右半边 next)
+  // 桌面端点击 (左/右 1/3)
   const handleClick = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    if (x < rect.width * 0.35) prev();
-    else if (x > rect.width * 0.65) next();
+    if (x < rect.width * 0.33) prev();
+    else if (x > rect.width * 0.67) next();
   };
 
   // 键盘
@@ -356,25 +367,26 @@ const YearlyWrap = ({ token, year, onClose }) => {
   }
 
   return (
-    <div style={{ position:'fixed', inset:0, background:'#000', zIndex:500, display:'flex', alignItems:'center', justifyContent:'center' }}>
-      {/* 主容器 */}
+    <div style={{ position:'fixed', inset:0, background:'#000', zIndex:500, display:'flex', alignItems:'center', justifyContent:'center', touchAction:'none', overscrollBehavior:'contain' }}>
+      {/* 主容器 — 全屏,无 maxHeight 让手机充满 */}
       <div
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         onClick={handleClick}
-        style={{ width:'100%', height:'100%', maxWidth:480, maxHeight:854, position:'relative', overflow:'hidden', background:'#000', cursor:'pointer' }}
+        style={{ width:'100%', height:'100dvh', maxWidth:480, position:'relative', overflow:'hidden', background:'#000', cursor:'pointer', userSelect:'none', WebkitTapHighlightColor:'transparent' }}
       >
-        {/* 进度条 */}
-        <div style={{ position:'absolute', top:12, left:12, right:12, display:'flex', gap:4, zIndex:10 }}>
+        {/* 进度条 — 顶部留出 env(safe-area-inset-top) */}
+        <div style={{ position:'absolute', top:'max(14px, env(safe-area-inset-top))', left:12, right:12, display:'flex', gap:4, zIndex:10 }}>
           {cards.map((_, i) => (
             <div key={i} style={{ flex:1, height:3, background:'rgba(255,255,255,0.3)', borderRadius:99, overflow:'hidden' }}>
               <div style={{ width: i < cardIdx ? '100%' : i === cardIdx ? '100%' : '0%', height:'100%', background:'#fff', transition:'width .4s' }} />
             </div>
           ))}
         </div>
-        {/* 关闭按钮 */}
+        {/* 关闭按钮 — 44×44 符合移动端 tap target */}
         <button onClick={(e) => { e.stopPropagation(); onClose(); }}
-          style={{ position:'absolute', top:28, right:16, width:32, height:32, borderRadius:'50%', background:'rgba(0,0,0,0.4)', backdropFilter:'blur(8px)', border:'none', color:'#fff', fontSize:18, cursor:'pointer', zIndex:20, display:'flex', alignItems:'center', justifyContent:'center' }}>
+          onTouchEnd={(e) => { e.stopPropagation(); onClose(); }}
+          style={{ position:'absolute', top:'max(28px, calc(env(safe-area-inset-top) + 14px))', right:12, width:44, height:44, borderRadius:'50%', background:'rgba(0,0,0,0.4)', backdropFilter:'blur(8px)', border:'none', color:'#fff', fontSize:22, cursor:'pointer', zIndex:20, display:'flex', alignItems:'center', justifyContent:'center', WebkitTapHighlightColor:'transparent' }}>
           ×
         </button>
         {/* 卡片 */}

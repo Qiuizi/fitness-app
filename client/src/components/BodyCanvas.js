@@ -159,12 +159,13 @@ const daysAgo = (d) => {
   return `${Math.floor(diff/30)}月前`;
 };
 
-const BodyCanvas = ({ bodyMap, period, onPeriodChange, onRefresh }) => {
+const BodyCanvas = ({ bodyMap, period, onPeriodChange }) => {
   const navigate = useNavigate();
   const [view, setView] = useState('front');
   const [selected, setSelected] = useState(null);
-  const [hover, setHover] = useState(null);
+  const [previewMuscle, setPreviewMuscle] = useState(null); // 移动端 tap 预览
   const longPressTimerRef = useRef(null);
+  const longPressFiredRef = useRef(false);
 
   const muscleData = bodyMap?.muscles || {};
   const muscles = view === 'front' ? FRONT_MUSCLES : BACK_MUSCLES;
@@ -175,51 +176,58 @@ const BodyCanvas = ({ bodyMap, period, onPeriodChange, onRefresh }) => {
     return muscles;
   }, [view, muscles]);
 
-  const handleMuscleClick = (muscle) => setSelected(muscle);
-  const handleMuscleLongPress = (muscle) => {
-    const ex = MUSCLE_REP_EXERCISE[muscle];
-    if (ex) navigate('/add', { state: { preselectExercise: ex } });
-  };
-  const onPointerDown = (muscle) => {
-    longPressTimerRef.current = setTimeout(() => {
-      handleMuscleLongPress(muscle);
+  const clearLongPress = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
+    }
+  };
+
+  const onPressStart = (muscle, e) => {
+    if (e) e.preventDefault(); // 阻止滚动
+    setPreviewMuscle(muscle);
+    longPressFiredRef.current = false;
+    longPressTimerRef.current = setTimeout(() => {
+      longPressFiredRef.current = true;
+      const ex = MUSCLE_REP_EXERCISE[muscle];
+      if (ex && navigator.vibrate) navigator.vibrate(20);
+      if (ex) navigate('/add', { state: { preselectExercise: ex } });
     }, 600);
   };
-  const onPointerUp = (muscle) => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-      handleMuscleClick(muscle);
+
+  const onPressEnd = (muscle) => {
+    clearLongPress();
+    if (!longPressFiredRef.current) {
+      setSelected(muscle);
     }
+    setPreviewMuscle(null);
   };
-  const onPointerLeave = () => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-    setHover(null);
+
+  const onPressCancel = () => {
+    clearLongPress();
+    setPreviewMuscle(null);
   };
 
   const renderShape = (muscle, shape, idx) => {
-    const isHover = hover === muscle;
+    const isPreview = previewMuscle === muscle;
     const isSelected = selected === muscle;
     const data = muscleData[muscle];
     const intensity = data?.intensity || 0;
     const fill = intensityColor(intensity);
-    const stroke = isSelected ? 'var(--c-blue)' : isHover ? 'var(--text-2)' : 'rgba(0,0,0,0.08)';
-    const strokeWidth = isSelected ? 2.5 : isHover ? 1.8 : 0.8;
+    const stroke = isSelected ? 'var(--c-blue)' : isPreview ? 'var(--text-2)' : 'rgba(0,0,0,0.08)';
+    const strokeWidth = isSelected ? 2.5 : isPreview ? 2 : 0.8;
     const commonProps = {
       fill,
       stroke,
       strokeWidth,
-      style: { cursor: 'pointer', transition: 'stroke-width .15s, stroke .15s' },
-      onMouseEnter: () => setHover(muscle),
-      onMouseLeave: onPointerLeave,
-      onMouseDown: () => onPointerDown(muscle),
-      onMouseUp: () => onPointerUp(muscle),
-      onTouchStart: () => onPointerDown(muscle),
-      onTouchEnd: () => onPointerUp(muscle),
+      style: { cursor: 'pointer', transition: 'stroke-width .15s, stroke .15s', WebkitTapHighlightColor:'transparent' },
+      onMouseEnter: () => setPreviewMuscle(muscle),
+      onMouseLeave: onPressCancel,
+      onMouseDown: () => onPressStart(muscle),
+      onMouseUp: () => onPressEnd(muscle),
+      onTouchStart: (e) => onPressStart(muscle, e),
+      onTouchEnd: (e) => { e.preventDefault(); onPressEnd(muscle); },
+      onTouchCancel: onPressCancel,
     };
     if (shape.type === 'ellipse') {
       return <ellipse key={`${muscle}-${idx}`} cx={shape.cx} cy={shape.cy} rx={shape.rx} ry={shape.ry} {...commonProps} />;
@@ -237,15 +245,16 @@ const BodyCanvas = ({ bodyMap, period, onPeriodChange, onRefresh }) => {
           <span style={{ fontSize:15, fontWeight:700 }}>身体</span>
           <span style={{ fontSize:10, fontWeight:700, background:'var(--c-blue-dim)', color:'var(--c-blue)', padding:'2px 8px', borderRadius:99 }}>交互</span>
         </div>
-        {/* Period toggle */}
-        <div style={{ display:'flex', background:'var(--surface-3)', borderRadius:99, padding:2 }}>
+        {/* Period toggle — 移动端更大 tap 区 */}
+        <div style={{ display:'flex', background:'var(--surface-3)', borderRadius:99, padding:3 }}>
           {[{k:'week',l:'7天'},{k:'month',l:'4周'},{k:'year',l:'全年'}].map(p => (
             <div key={p.k} onClick={() => onPeriodChange(p.k)}
-              style={{ padding:'5px 12px', fontSize:11, fontWeight:700, borderRadius:99, cursor:'pointer',
+              style={{ padding:'8px 14px', fontSize:12, fontWeight:700, borderRadius:99, cursor:'pointer',
                 background: period === p.k ? 'var(--surface)' : 'transparent',
                 color: period === p.k ? 'var(--c-blue)' : 'var(--text-3)',
                 boxShadow: period === p.k ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
-                transition:'all .15s' }}>{p.l}</div>
+                transition:'all .15s',
+                WebkitTapHighlightColor:'transparent' }}>{p.l}</div>
           ))}
         </div>
       </div>
@@ -254,39 +263,45 @@ const BodyCanvas = ({ bodyMap, period, onPeriodChange, onRefresh }) => {
       <div style={{ display:'flex', justifyContent:'center', gap:8, marginBottom:12 }}>
         {[{k:'front',l:'正面'},{k:'back',l:'背面'}].map(v => (
           <div key={v.k} onClick={() => { setView(v.k); setSelected(null); }}
-            style={{ padding:'6px 18px', fontSize:12, fontWeight:700, borderRadius:99, cursor:'pointer',
+            style={{ padding:'10px 22px', fontSize:13, fontWeight:700, borderRadius:99, cursor:'pointer',
               background: view === v.k ? 'var(--c-blue)' : 'var(--surface-3)',
               color: view === v.k ? 'var(--surface)' : 'var(--text-3)',
-              transition:'all .15s' }}>{v.l}</div>
+              transition:'all .15s',
+              WebkitTapHighlightColor:'transparent' }}>{v.l}</div>
         ))}
       </div>
 
-      {/* SVG body */}
-      <div style={{ display:'flex', justifyContent:'center' }}>
-        <svg viewBox="0 0 280 460" width="240" height="395" style={{ maxWidth:'100%' }}>
+      {/* SVG body — 手机端相对宽度自适应 */}
+      <div style={{ display:'flex', justifyContent:'center', touchAction:'manipulation' }}>
+        <svg viewBox="0 0 280 460" style={{ width:'min(85vw, 320px)', maxWidth:'100%', userSelect:'none' }}>
           {/* 轮廓 */}
           <path d={BODY_OUTLINE_FRONT} fill="var(--surface-3)" stroke="var(--border)" strokeWidth="1" opacity={0.7} />
           {/* 肌群 */}
           {Object.entries(effectiveMuscles).map(([muscle, shapes]) =>
             shapes.map((s, i) => renderShape(muscle, s, i))
           )}
-          {/* Hover tooltip: 数字显示 */}
-          {hover && muscleData[hover] && (() => {
-            const shapes = effectiveMuscles[hover];
+          {/* 当前按压的肌群: 显示组数气泡 */}
+          {previewMuscle && muscleData[previewMuscle] && (() => {
+            const shapes = effectiveMuscles[previewMuscle];
             if (!shapes?.length) return null;
             const s = shapes[0];
             const cx = s.cx ?? 140;
             const cy = s.cy ?? 230;
             return (
               <g pointerEvents="none">
-                <rect x={cx - 24} y={cy - 14} width={48} height={18} rx={9} fill="var(--text-1)" opacity={0.9} />
-                <text x={cx} y={cy - 1} textAnchor="middle" fontSize="10" fontWeight="700" fill="var(--surface)">
-                  {muscleData[hover].sets}组
+                <rect x={cx - 28} y={cy - 16} width={56} height={22} rx={11} fill="var(--text-1)" opacity={0.92} />
+                <text x={cx} y={cy - 1} textAnchor="middle" fontSize="11" fontWeight="700" fill="var(--surface)">
+                  {muscleData[previewMuscle].sets}组
                 </text>
               </g>
             );
           })()}
         </svg>
+      </div>
+
+      {/* 当前按压肌群名称 — 移动端视觉反馈 */}
+      <div style={{ textAlign:'center', fontSize:13, fontWeight:700, color: previewMuscle ? 'var(--c-blue)' : 'var(--text-4)', height:18, marginTop:4, transition:'color .15s' }}>
+        {previewMuscle || '点击肌群查看详情 · 长按直接训练'}
       </div>
 
       {/* Legend */}
@@ -306,12 +321,12 @@ const BodyCanvas = ({ bodyMap, period, onPeriodChange, onRefresh }) => {
         </div>
       )}
 
-      {/* Bottom sheet */}
+      {/* Bottom sheet — 手机端全宽 + 安全区 */}
       {selected && (
         <div onClick={() => setSelected(null)}
-          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.3)', zIndex:200, display:'flex', alignItems:'flex-end', justifyContent:'center', animation:'fadeIn .2s' }}>
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.3)', zIndex:200, display:'flex', alignItems:'flex-end', justifyContent:'center', animation:'fadeIn .2s', touchAction:'none' }}>
           <div onClick={e => e.stopPropagation()}
-            style={{ background:'var(--surface)', borderRadius:'20px 20px 0 0', width:'100%', maxWidth:500, padding:'20px', boxShadow:'0 -8px 32px rgba(0,0,0,0.15)', animation:'slideUp .25s ease-out' }}>
+            style={{ background:'var(--surface)', borderRadius:'20px 20px 0 0', width:'100%', maxWidth:500, padding:'20px 20px calc(20px + env(safe-area-inset-bottom))', boxShadow:'0 -8px 32px rgba(0,0,0,0.15)', animation:'slideUp .25s ease-out', maxHeight:'80dvh', overflowY:'auto' }}>
             {/* Handle */}
             <div style={{ width:40, height:4, background:'var(--surface-3)', borderRadius:99, margin:'0 auto 16px' }} />
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16 }}>
@@ -356,11 +371,11 @@ const BodyCanvas = ({ bodyMap, period, onPeriodChange, onRefresh }) => {
               </div>
             )}
             <div style={{ display:'flex', gap:8 }}>
-              <button onClick={() => setSelected(null)} style={{ flex:1, padding:'12px', background:'var(--surface-3)', color:'var(--text-2)', border:'none', borderRadius:'var(--r-m)', fontWeight:600, cursor:'pointer' }}>关闭</button>
+              <button onClick={() => setSelected(null)} style={{ flex:1, padding:'14px', fontSize:14, background:'var(--surface-3)', color:'var(--text-2)', border:'none', borderRadius:'var(--r-m)', fontWeight:600, cursor:'pointer', WebkitTapHighlightColor:'transparent' }}>关闭</button>
               <button onClick={() => {
                 const ex = MUSCLE_REP_EXERCISE[selected];
                 if (ex) navigate('/add', { state: { preselectExercise: ex } });
-              }} style={{ flex:1, padding:'12px', background:'var(--c-blue)', color:'var(--surface)', border:'none', borderRadius:'var(--r-m)', fontWeight:700, cursor:'pointer' }}>去训练</button>
+              }} style={{ flex:1, padding:'14px', fontSize:14, background:'var(--c-blue)', color:'var(--surface)', border:'none', borderRadius:'var(--r-m)', fontWeight:700, cursor:'pointer', WebkitTapHighlightColor:'transparent' }}>去训练</button>
             </div>
           </div>
         </div>
