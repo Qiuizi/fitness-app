@@ -189,7 +189,7 @@ const ExitSheet = memo(({ onSave, onDiscard, onCancel }) => (
       <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 6 }}>退出训练？</div>
       <div style={{ fontSize: 14, color: 'var(--text-3)', marginBottom: 24, lineHeight: 1.5 }}>训练进度已自动保存，下次打开会自动恢复。</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <button onClick={onSave} style={{ width: '100%', padding: 14, fontSize: 15, fontWeight: 700, borderRadius: 'var(--r-l)', background: 'var(--c-blue)', color: '#fff', border: 'none', cursor: 'pointer' }}>保存草稿，稍后继续</button>
+        <button onClick={onSave} style={{ width: '100%', padding: 14, fontSize: 15, fontWeight: 700, borderRadius: 'var(--r-l)', background: 'var(--c-blue)', color: 'var(--surface)', border: 'none', cursor: 'pointer' }}>保存草稿，稍后继续</button>
         <button onClick={onDiscard} style={{ width: '100%', padding: 14, fontSize: 15, fontWeight: 700, borderRadius: 'var(--r-l)', background: 'var(--c-red-dim)', color: 'var(--c-red)', border: 'none', cursor: 'pointer' }}>放弃本次训练</button>
         <button onClick={onCancel} style={{ width: '100%', padding: 14, fontSize: 15, fontWeight: 600, borderRadius: 'var(--r-l)', background: 'var(--surface-3)', color: 'var(--text-2)', border: 'none', cursor: 'pointer' }}>继续训练</button>
       </div>
@@ -202,7 +202,7 @@ const SetCompleteFlash = memo(({ onDone }) => {
   useEffect(() => { const t = setTimeout(onDone, 750); return () => clearTimeout(t); }, [onDone]);
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 5000, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'var(--c-green)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, color: '#fff', animation: 'setCheckPop 0.75s cubic-bezier(0.34,1.56,0.64,1) forwards' }}>✓</div>
+      <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'var(--c-green)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, color: 'var(--surface)', animation: 'setCheckPop 0.75s cubic-bezier(0.34,1.56,0.64,1) forwards' }}>✓</div>
       <style>{`@keyframes setCheckPop{0%{transform:scale(0);opacity:0;box-shadow:0 0 0 0 rgba(52,199,89,.5)}40%{transform:scale(1.2);opacity:1;box-shadow:0 0 0 20px rgba(52,199,89,.15)}70%{transform:scale(1);box-shadow:0 0 0 32px rgba(52,199,89,0)}100%{transform:scale(1);opacity:0}}`}</style>
     </div>
   );
@@ -221,7 +221,7 @@ const DraftBanner = memo(({ draft, onRestore, onDiscard }) => {
       </div>
       <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
         <button onClick={onDiscard} style={{ background: 'none', border: 'none', color: 'var(--text-4)', fontSize: 12, fontWeight: 600, padding: '6px 10px', cursor: 'pointer', borderRadius: 8 }}>丢弃</button>
-        <button onClick={onRestore} style={{ background: 'var(--c-blue)', color: '#fff', border: 'none', fontSize: 13, fontWeight: 700, padding: '7px 14px', cursor: 'pointer', borderRadius: 99 }}>恢复</button>
+        <button onClick={onRestore} style={{ background: 'var(--c-blue)', color: 'var(--surface)', border: 'none', fontSize: 13, fontWeight: 700, padding: '7px 14px', cursor: 'pointer', borderRadius: 99 }}>恢复</button>
       </div>
     </div>
   );
@@ -267,7 +267,7 @@ const RestTimer = memo(({ initialSecs, onSkip, onAdd, onExpire }) => {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
         <button onClick={handleAdd} style={{ background: 'rgba(255,255,255,.12)', color: '#fff', border: 'none', borderRadius: 10, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>+30s</button>
-        <button onClick={onSkip} style={{ background: 'rgba(255,59,48,.2)', color: '#ff453a', border: 'none', borderRadius: 10, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>跳过</button>
+        <button onClick={onSkip} style={{ background: 'rgba(255,59,48,.2)', color: 'var(--c-red)', border: 'none', borderRadius: 10, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>跳过</button>
       </div>
     </div>
   );
@@ -292,11 +292,11 @@ const CardioTimer = memo(({ onFinish }) => {
       </div>
       <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
         {!running ? (
-          <button onClick={() => setRunning(true)} style={{ background: 'var(--c-blue)', color: '#fff', border: 'none', borderRadius: 99, padding: '12px 32px', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>{secs === 0 ? '▶ 开始' : '▶ 继续'}</button>
+          <button onClick={() => setRunning(true)} style={{ background: 'var(--c-blue)', color: 'var(--surface)', border: 'none', borderRadius: 99, padding: '12px 32px', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>{secs === 0 ? '▶ 开始' : '▶ 继续'}</button>
         ) : (
-          <button onClick={() => setRunning(false)} style={{ background: 'var(--c-orange)', color: '#fff', border: 'none', borderRadius: 99, padding: '12px 28px', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>⏸ 暂停</button>
+          <button onClick={() => setRunning(false)} style={{ background: 'var(--c-orange)', color: 'var(--surface)', border: 'none', borderRadius: 99, padding: '12px 28px', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>⏸ 暂停</button>
         )}
-        {secs > 0 && <button onClick={() => { setRunning(false); onFinish(mins); }} style={{ background: 'var(--c-green)', color: '#fff', border: 'none', borderRadius: 99, padding: '12px 28px', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>✓ {mins > 0 ? `完成 ${mins}min` : '完成'}</button>}
+        {secs > 0 && <button onClick={() => { setRunning(false); onFinish(mins); }} style={{ background: 'var(--c-green)', color: 'var(--surface)', border: 'none', borderRadius: 99, padding: '12px 28px', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>✓ {mins > 0 ? `完成 ${mins}min` : '完成'}</button>}
       </div>
     </div>
   );
@@ -328,7 +328,7 @@ const SetRow = memo(({ set, index, isCardio, isBodyweight, onChange, onRemove, o
         <div style={{ width: 28, height: 28, borderRadius: 99, flexShrink: 0, background: isDone ? 'var(--c-green)' : set.isWarmup ? 'var(--c-orange)' : 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: isDone || set.isWarmup ? '#fff' : 'var(--text-3)', transition: 'all .3s cubic-bezier(.34,1.56,.64,1)' }}>{isDone ? '✓' : set.isWarmup ? 'W' : index + 1}</div>
 
         {!isCardio && !isDone && (
-          <button type="button" onClick={() => onChange(index, 'isWarmup', !set.isWarmup)} style={{ background: set.isWarmup ? 'var(--c-orange-dim)' : 'var(--surface-3)', color: set.isWarmup ? '#b86800' : 'var(--text-4)', border: 'none', borderRadius: 99, padding: '3px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>{set.isWarmup ? '热身' : '正式'}</button>
+          <button type="button" onClick={() => onChange(index, 'isWarmup', !set.isWarmup)} style={{ background: set.isWarmup ? 'var(--c-orange-dim)' : 'var(--surface-3)', color: set.isWarmup ? 'var(--c-orange)' : 'var(--text-4)', border: 'none', borderRadius: 99, padding: '3px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>{set.isWarmup ? '热身' : '正式'}</button>
         )}
 
         {!isCardio && (
@@ -447,8 +447,8 @@ const SetRow = memo(({ set, index, isCardio, isBodyweight, onChange, onRemove, o
       {isDone && (
         <div style={{ fontSize: 14, fontWeight: 600, paddingLeft: 38, color: 'var(--text-2)' }}>
           {isCardio ? `${set.weight} 分钟` : isBodyweight ? `自重 × ${set.reps} 次` : `${set.weight} kg × ${set.reps} 次`}
-          {set.setType === 'superset' && <span style={{ color:'#5e5ce6', fontSize:10, fontWeight:700, marginLeft:6, background:'rgba(94,92,230,.1)', padding:'1px 6px', borderRadius:4 }}>超级组</span>}
-          {set.setType === 'dropset' && <span style={{ color:'#ff9f0a', fontSize:10, fontWeight:700, marginLeft:6, background:'rgba(255,159,10,.1)', padding:'1px 6px', borderRadius:4 }}>递减组</span>}
+          {set.setType === 'superset' && <span style={{ color:'var(--c-purple)', fontSize:10, fontWeight:700, marginLeft:6, background:'rgba(94,92,230,.1)', padding:'1px 6px', borderRadius:4 }}>超级组</span>}
+          {set.setType === 'dropset' && <span style={{ color:'var(--c-orange)', fontSize:10, fontWeight:700, marginLeft:6, background:'rgba(255,159,10,.1)', padding:'1px 6px', borderRadius:4 }}>递减组</span>}
           {set.rpe && <span style={{ color: set.rpe >= 9 ? 'var(--c-red)' : set.rpe >= 8 ? 'var(--c-orange)' : 'var(--c-green)', fontSize: 11, fontWeight: 700, marginLeft: 8 }}>RPE {set.rpe}</span>}
           {set.setDuration > 0 && <span style={{ color: 'var(--text-4)', fontSize: 11, fontFamily: 'var(--font-mono)', marginLeft: 8 }}>{fmtShort(set.setDuration)}</span>}
         </div>
@@ -480,7 +480,7 @@ const ExerciseDonePage = memo(({ exercise, sets, completedExercises, onNext, onE
         </div>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <button onClick={onNext} style={{ fontSize: 16, padding: 15, borderRadius: 'var(--r-xl)', fontWeight: 700, background: 'var(--c-blue)', color: '#fff', border: 'none', cursor: 'pointer' }}>+ 继续下一个动作</button>
+        <button onClick={onNext} style={{ fontSize: 16, padding: 15, borderRadius: 'var(--r-xl)', fontWeight: 700, background: 'var(--c-blue)', color: 'var(--surface)', border: 'none', cursor: 'pointer' }}>+ 继续下一个动作</button>
         <button onClick={onEnd} style={{ fontSize: 15, padding: 14, borderRadius: 'var(--r-xl)', fontWeight: 700, background: 'var(--c-green-dim)', color: '#1a7a35', border: 'none', cursor: 'pointer' }}>结束本次训练</button>
       </div>
     </div>
@@ -549,7 +549,7 @@ const WorkoutSummary = memo(({ records, duration, onDone, onSaveTemplate }) => {
       </div>
       <div style={{ width: '100%', maxWidth: 390, marginTop: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
         <button onClick={onSaveTemplate} style={{ width: '100%', padding: 13, fontSize: 14, fontWeight: 600, borderRadius: 'var(--r-xl)', background: 'rgba(94,92,230,.12)', color: 'var(--c-purple)', border: '1px solid rgba(94,92,230,.2)', cursor: 'pointer' }}>📋 保存为模板</button>
-        <button onClick={onDone} style={{ width: '100%', padding: 15, fontSize: 16, fontWeight: 700, borderRadius: 'var(--r-xl)', background: 'var(--c-blue)', color: '#fff', border: 'none', cursor: 'pointer' }}>回到主页</button>
+        <button onClick={onDone} style={{ width: '100%', padding: 15, fontSize: 16, fontWeight: 700, borderRadius: 'var(--r-xl)', background: 'var(--c-blue)', color: 'var(--surface)', border: 'none', cursor: 'pointer' }}>回到主页</button>
         <button onClick={() => navigator.share?.({ title: 'IRON 健身日记', text: `今天完成训练！${records.length}个动作，${totalSets}组，${mins}分钟。` })} style={{ width: '100%', padding: 13, fontSize: 14, fontWeight: 600, borderRadius: 'var(--r-xl)', background: 'var(--surface-3)', color: 'var(--text-2)', border: 'none', cursor: 'pointer' }}>分享成就</button>
       </div>
     </div>
@@ -607,6 +607,7 @@ const AddWorkout = () => {
   const location  = useLocation();
   const toast     = useToast();
   const templateData = location.state?.template;
+  const preselectExercise = location.state?.preselectExercise;
 
   // 总计时：用 ref 避免影响渲染
   const startTimeRef = useRef(Date.now());
@@ -653,6 +654,10 @@ const AddWorkout = () => {
   // 规则教练：展开"为什么"
   const [showWhy, setShowWhy] = useState(false);
 
+  // 语音录入：基于浏览器原生 SpeechRecognition，零成本
+  const [voiceListening, setVoiceListening] = useState(false);
+  const voiceSupported = typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+
   // 组间休息结束/跳过 → 自动聚焦下一组的重量输入（零摩擦记录的关键）
   const focusNextUndoneSet = useCallback(() => {
     requestAnimationFrame(() => {
@@ -666,6 +671,59 @@ const AddWorkout = () => {
       }
     });
   }, []);
+
+  // 语音解析：抽取两个数字 → (weight, reps)
+  const parseVoicePhrase = useCallback((text) => {
+    if (!text) return null;
+    const CN = { 零: 0, 一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 };
+    const cnToNum = (s) => {
+      if (/^\d+(\.\d+)?$/.test(s)) return parseFloat(s);
+      if (s === '十') return 10;
+      if (/^十[零一二三四五六七八九]$/.test(s)) return 10 + CN[s[1]];
+      if (/^[二三四五六七八九]十$/.test(s)) return CN[s[0]] * 10;
+      if (/^[二三四五六七八九]十[零一二三四五六七八九]$/.test(s)) return CN[s[0]] * 10 + CN[s[2]];
+      if (s.length === 1 && CN[s] != null) return CN[s];
+      return NaN;
+    };
+    const pattern = /(\d+(?:\.\d+)?|[零一二三四五六七八九十]+)/g;
+    const nums = [];
+    let m;
+    while ((m = pattern.exec(text)) !== null) {
+      const v = cnToNum(m[1]);
+      if (!isNaN(v)) nums.push(v);
+      if (nums.length >= 2) break;
+    }
+    if (nums.length < 2) return null;
+    return { weight: nums[0], reps: nums[1] };
+  }, []);
+
+  const startVoice = useCallback(() => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { toast.error('当前浏览器不支持语音识别'); return; }
+    if (voiceListening) return;
+    const rec = new SR();
+    rec.lang = 'zh-CN';
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+    setVoiceListening(true);
+    rec.onresult = (e) => {
+      const text = e.results[0]?.[0]?.transcript || '';
+      const parsed = parseVoicePhrase(text);
+      if (!parsed) { toast.info(`听到"${text}"，没识别到数字`); return; }
+      const idx = (setsRef.current || []).findIndex(s => !s.done);
+      if (idx < 0) { toast.info('所有组都已完成'); return; }
+      setSets(prev => prev.map((s, i) => i === idx ? { ...s, weight: parsed.weight, reps: parsed.reps } : s));
+      vibrate(20);
+      toast.success(`第 ${idx + 1} 组：${parsed.weight === 0 ? '自重' : `${parsed.weight}kg`} × ${parsed.reps}`);
+    };
+    rec.onerror = (e) => {
+      if (e.error === 'no-speech') toast.info('没听到声音');
+      else if (e.error === 'not-allowed') toast.error('请允许麦克风权限');
+      else toast.error('语音识别失败');
+    };
+    rec.onend = () => setVoiceListening(false);
+    try { rec.start(); } catch { setVoiceListening(false); }
+  }, [voiceListening, parseVoicePhrase, toast]);
 
   const filteredExercises = useMemo(() => {
     const query = searchText.trim();
@@ -706,6 +764,9 @@ const AddWorkout = () => {
       setTemplateQueue(templateData.exercises.slice(1));
       setPhase('log');
       loadExerciseData(first.exercise, first.type === 'cardio');
+    } else if (preselectExercise) {
+      // 从 Dashboard "今日建议" 跳转过来，直接进入该动作的记录页
+      handleExerciseSelect(preselectExercise);
     } else {
       const saved = loadDraft();
       if (saved) setDraft(saved);
@@ -1236,7 +1297,7 @@ const AddWorkout = () => {
         <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-4)', textTransform: 'uppercase', letterSpacing: '.04em', whiteSpace: 'nowrap', flexShrink: 0 }}>状态</span>
         <div style={{ display: 'flex', gap: 3, flex: 1, justifyContent: 'center' }}>
           {[1, 2, 3, 4, 5].map(lv => (
-            <button key={lv} type="button" onClick={() => setEnergyLevel(lv)} style={{ width: 22, height: 22, borderRadius: 5, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 800, lineHeight: 1, transition: 'all .15s', display: 'flex', alignItems: 'center', justifyContent: 'center', background: energyLevel >= lv ? 'var(--c-blue)' : 'var(--surface-3)', color: energyLevel >= lv ? '#fff' : 'var(--text-4)', transform: energyLevel === lv ? 'scale(1.12)' : 'scale(1)', flexShrink: 0, padding: 0 }}>{lv}</button>
+            <button key={lv} type="button" onClick={() => setEnergyLevel(lv)} style={{ width: 22, height: 22, borderRadius: 5, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 800, lineHeight: 1, transition: 'all .15s', display: 'flex', alignItems: 'center', justifyContent: 'center', background: energyLevel >= lv ? 'var(--c-blue)' : 'var(--surface-3)', color: energyLevel >= lv ? 'var(--surface)' : 'var(--text-4)', transform: energyLevel === lv ? 'scale(1.12)' : 'scale(1)', flexShrink: 0, padding: 0 }}>{lv}</button>
           ))}
         </div>
         <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--c-blue)', whiteSpace: 'nowrap', flexShrink: 0 }}>{energyLevel <= 2 ? '偏疲' : energyLevel === 3 ? '一般' : '状态好'}</span>
@@ -1374,7 +1435,18 @@ const AddWorkout = () => {
         ))}
       </div>
 
-      <button type="button" onClick={addSet} style={{ width: '100%', background: 'var(--c-blue-dim)', color: 'var(--c-blue)', border: 'none', borderRadius: 'var(--r-l)', padding: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer', marginBottom: 14 }}>+ 添加一组</button>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+        <button type="button" onClick={addSet} style={{ flex: 1, background: 'var(--c-blue-dim)', color: 'var(--c-blue)', border: 'none', borderRadius: 'var(--r-l)', padding: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>+ 添加一组</button>
+        {voiceSupported && !isCardio && (
+          <button type="button" onClick={startVoice} title='说"60公斤 8次"'
+            style={{ width: 56, background: voiceListening ? 'var(--c-red-dim)' : 'var(--surface-3)', color: voiceListening ? 'var(--c-red)' : 'var(--text-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-l)', padding: 0, fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative' }}>
+            {voiceListening ? '●' : '🎙'}
+            {voiceListening && (
+              <span style={{ position: 'absolute', inset: 0, borderRadius: 'var(--r-l)', border: '2px solid var(--c-red)', animation: 'micPulse 1.1s ease-out infinite' }} />
+            )}
+          </button>
+        )}
+      </div>
 
       {/* 休息快捷 */}
       {!isCardio && (
@@ -1394,7 +1466,7 @@ const AddWorkout = () => {
       <textarea placeholder="今天的状态、心得…" value={notes} onChange={e => setNotes(e.target.value)} rows={2} style={{ marginTop: 4, marginBottom: 16, fontSize: 15 }} />
 
       {/* 完成按钮 */}
-      <button onClick={handleFinishExercise} style={{ width: '100%', fontSize: 17, padding: 15, borderRadius: 'var(--r-xl)', fontWeight: 700, background: templateQueue.length > 0 ? 'var(--c-blue)' : 'var(--c-green)', letterSpacing: '-.01em', color: '#fff', border: 'none', cursor: 'pointer' }}>
+      <button onClick={handleFinishExercise} style={{ width: '100%', fontSize: 17, padding: 15, borderRadius: 'var(--r-xl)', fontWeight: 700, background: templateQueue.length > 0 ? 'var(--c-blue)' : 'var(--c-green)', letterSpacing: '-.01em', color: 'var(--surface)', border: 'none', cursor: 'pointer' }}>
         {templateQueue.length > 0 ? `下一个：${templateQueue[0].exercise} →` : '完成这个动作 ✓'}
       </button>
 
@@ -1410,6 +1482,7 @@ const AddWorkout = () => {
 
       <style>{`
         @keyframes pulse-text{0%,100%{opacity:1}50%{opacity:.55}}
+        @keyframes micPulse{0%{transform:scale(1);opacity:.6}100%{transform:scale(1.35);opacity:0}}
         input[type=number]::-webkit-outer-spin-button,
         input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
         input[type=number]{-moz-appearance:textfield}

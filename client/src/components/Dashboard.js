@@ -915,6 +915,7 @@ const Dashboard = () => {
   const [trainingPlans, setTrainingPlans] = useState([]);
   const [progressPhotos, setProgressPhotos] = useState([]);
   const [reminderSettings, setReminderSettings] = useState(null);
+  const [todaySuggestions, setTodaySuggestions] = useState([]);
 
   const [period, setPeriod]             = useState('all');
   const [activeTab, setActiveTab]       = useState('overview');
@@ -939,7 +940,7 @@ const Dashboard = () => {
     if (!token) return;
     setLoading(true);
     try {
-      const [wRes, sRes, prRes, insRes, bwRes, profRes, mhRes, mvRes, tpRes] = await Promise.all([
+      const [wRes, sRes, prRes, insRes, bwRes, profRes, mhRes, mvRes, tpRes, tsRes] = await Promise.all([
         fetch(`${API_URL}/api/workouts?period=${period}`, { headers: { 'x-auth-token': token } }),
         fetch(`${API_URL}/api/workouts/stats`,            { headers: { 'x-auth-token': token } }),
         fetch(`${API_URL}/api/workouts/pr`,               { headers: { 'x-auth-token': token } }),
@@ -949,6 +950,7 @@ const Dashboard = () => {
         fetch(`${API_URL}/api/workouts/muscle-heatmap?period=${period}`, { headers: { 'x-auth-token': token } }),
         fetch(`${API_URL}/api/workouts/muscle-volume?weeks=4`,           { headers: { 'x-auth-token': token } }),
         fetch(`${API_URL}/api/workouts/training-plans`,                   { headers: { 'x-auth-token': token } }),
+        fetch(`${API_URL}/api/workouts/today-suggestions`,                { headers: { 'x-auth-token': token } }),
       ]);
       if (wRes.ok)    setWorkouts(await wRes.json());
       if (sRes.ok)    setStats(await sRes.json());
@@ -958,6 +960,7 @@ const Dashboard = () => {
       if (mhRes.ok)   setMuscleHeatmap(await mhRes.json());
       if (mvRes.ok)   setMuscleVolume(await mvRes.json());
       if (tpRes.ok)   setTrainingPlans(await tpRes.json());
+      if (tsRes.ok)   setTodaySuggestions(await tsRes.json());
       if (profRes.ok) {
         const p = await profRes.json();
         setTemplates(p.templates || []);
@@ -1311,6 +1314,36 @@ const Dashboard = () => {
               )}
             </div>
           </div>
+
+          {/* 今日建议 — 规则教练 */}
+          {todaySuggestions.length > 0 && (
+            <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-xl)', padding: 16, border: '1px solid var(--border)', marginBottom: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <h3 style={{ margin: 0, fontSize: 16 }}>今日建议</h3>
+                  <span style={{ fontSize: 10, fontWeight: 700, background: 'var(--c-blue-dim)', color: 'var(--c-blue)', padding: '2px 8px', borderRadius: 99, letterSpacing: '.04em' }}>规则教练</span>
+                </div>
+                <button onClick={() => navigate('/add')} style={{ background: 'transparent', border: 'none', color: 'var(--text-3)', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>全部 ›</button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {todaySuggestions.map((s, i) => (
+                  <div key={i}
+                    onClick={() => navigate('/add', { state: { preselectExercise: s.exercise } })}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: 'var(--surface-3)', borderRadius: 'var(--r-m)', cursor: 'pointer', transition: 'background .15s' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--c-blue-dim)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'var(--surface-3)'}>
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--c-blue-dim)', color: 'var(--c-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, flexShrink: 0 }}>{i + 1}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 2 }}>{s.exercise}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{s.reason}</div>
+                    </div>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-4)', background: 'var(--surface)', padding: '3px 8px', borderRadius: 99, flexShrink: 0 }}>{s.muscle}</span>
+                    <span style={{ color: 'var(--text-4)', fontSize: 16, flexShrink: 0 }}>›</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Streak */}
           {stats && (
