@@ -5,6 +5,7 @@ import { API_URL } from '../config';
 import { useToast } from './Toast';
 import BodyCanvas from './BodyCanvas';
 import YearlyWrap from './YearlyWrap';
+import StrengthTimeline from './StrengthTimeline';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -1734,6 +1735,7 @@ const Dashboard = () => {
       // ═══ 个人记录 ═══
       case 'pr': return (
         <div style={{ maxWidth:'var(--max-w)', margin:'0 auto', padding:'0 12px 20px' }}>
+          <StrengthTimeline token={token} />
           {prs.length === 0 ? (
             <EmptyState
               kind="pr"

@@ -838,6 +838,128 @@ router.get('/body-map', auth, async (req, res) => {
   } catch (e) { console.error('[body-map]', e); res.status(500).send('Server Error'); }
 });
 
+// GET /api/workouts/strength-timeline?months=12 — 月度力量时间轴
+router.get('/strength-timeline', auth, async (req, res) => {
+  try {
+    const months = Math.min(24, Math.max(3, parseInt(req.query.months) || 12));
+    const now = new Date();
+    const cutoff = new Date(now.getFullYear(), now.getMonth() - months + 1, 1);
+    const workouts = await Workout.find({
+      user: req.user.id,
+      date: { $gte: cutoff },
+    }).sort({ date: 1 });
+
+    // 构造 months 个月的空桶 (按月倒序最近的在后面)
+    const buckets = [];
+    for (let i = months - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      buckets.push({
+        key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+        year: d.getFullYear(),
+        month: d.getMonth() + 1,
+        label: `${d.getMonth() + 1}月`,
+        days: new Set(),
+        volume: 0,
+        sets: 0,
+        workouts: 0,
+        bestE1RM: 0,
+        bestPR: null,
+        exerciseVol: {},
+        exerciseE1RM: {}, // exercise -> best e1rm in this month
+      });
+    }
+    const keyToIdx = new Map(buckets.map((b, i) => [b.key, i]));
+
+    // 全局 top 3 动作 (按总组数)
+    const globalExCount = {};
+    for (const w of workouts) {
+      globalExCount[w.exercise] = (globalExCount[w.exercise] || 0) + 1;
+    }
+    const topExercises = Object.entries(globalExCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([ex]) => ex);
+
+    // 每月聚合
+    for (const w of workouts) {
+      const d = new Date(w.date);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const idx = keyToIdx.get(key);
+      if (idx === undefined) continue;
+      const b = buckets[idx];
+      b.days.add(toDateStr(w.date));
+      b.workouts++;
+      if (w.type === 'strength') {
+        const setsCount = w.sets.filter(s => !s.isWarmup).length || w.sets.length;
+        b.sets += setsCount;
+        const vol = w.sets.reduce((a, s) => a + (s.weight || 0) * (s.reps || 0), 0);
+        b.volume += vol;
+        b.exerciseVol[w.exercise] = (b.exerciseVol[w.exercise] || 0) + vol;
+
+        // best e1RM per exercise per month
+        let bestThisSession = 0;
+        for (const s of w.sets) {
+          if (s.isWarmup || !s.weight || !s.reps) continue;
+          const e = s.weight * (1 + s.reps / 30);
+          if (e > bestThisSession) bestThisSession = e;
+          if (e > b.bestE1RM) {
+            b.bestE1RM = e;
+            b.bestPR = { exercise: w.exercise, weight: s.weight, reps: s.reps, e1rm: Math.round(e * 10) / 10, date: w.date };
+          }
+        }
+        if (bestThisSession > (b.exerciseE1RM[w.exercise] || 0)) {
+          b.exerciseE1RM[w.exercise] = bestThisSession;
+        }
+      }
+    }
+
+    // 计算月度趋势 (本月平均 e1RM vs 上月)
+    const exerciseSeries = {};
+    for (const ex of topExercises) {
+      exerciseSeries[ex] = buckets.map(b => Math.round((b.exerciseE1RM[ex] || 0) * 10) / 10);
+    }
+
+    // 每月 top 动作 (按容量)
+    const formatted = buckets.map((b, i) => {
+      const prevBucket = i > 0 ? buckets[i - 1] : null;
+      const trend = (() => {
+        if (!prevBucket || !prevBucket.bestE1RM || !b.bestE1RM) return 0;
+        const delta = b.bestE1RM - prevBucket.bestE1RM;
+        if (Math.abs(delta) < 0.5) return 0;
+        return delta > 0 ? 1 : -1;
+      })();
+      const monthTopEx = Object.entries(b.exerciseVol)
+        .sort((a, b2) => b2[1] - a[1])
+        .slice(0, 3)
+        .map(([ex, vol]) => ({ exercise: ex, volume: Math.round(vol) }));
+
+      return {
+        key: b.key, year: b.year, month: b.month, label: b.label,
+        trainingDays: b.days.size,
+        workouts: b.workouts,
+        sets: b.sets,
+        volume: Math.round(b.volume),
+        bestE1RM: Math.round(b.bestE1RM * 10) / 10,
+        bestPR: b.bestPR,
+        topExercises: monthTopEx,
+        trend,
+      };
+    });
+
+    const maxVolume = Math.max(...formatted.map(b => b.volume), 1);
+    const maxE1RM = Math.max(...Object.values(exerciseSeries).flat(), 1);
+
+    res.json({
+      months,
+      buckets: formatted,
+      maxVolume,
+      maxE1RM,
+      topExercises,
+      exerciseSeries,
+    });
+  } catch (e) { console.error('[strength-timeline]', e); res.status(500).send('Server Error'); }
+});
+
 // GET /api/workouts/yearly-wrap?year=YYYY — 年度回顾聚合
 router.get('/yearly-wrap', auth, async (req, res) => {
   try {
