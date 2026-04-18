@@ -2061,7 +2061,7 @@ const Dashboard = () => {
         <span className="nav-brand">IRON</span>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           {/* 移动端 nav 只保留品牌+记录按钮 */}
-          <Link to="/add"><button className="nav-btn-primary">+ 训练</button></Link>
+          <Link to="/session"><button className="nav-btn-primary">开始训练</button></Link>
           {/* 桌面端额外按钮 */}
           <button className="nav-btn-icon" onClick={() => setShowProfile(true)} style={{ fontSize:17 }}>⚙</button>
           <button className="nav-btn-icon" onClick={logout} style={{ fontSize:16 }}>↗</button>
@@ -2100,9 +2100,9 @@ const Dashboard = () => {
          </div>
          {/* 中间大按钮（记录） */}
          <div className="tab-item tab-cta">
-           <Link to="/add" style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4, textDecoration:'none' }}>
+           <Link to="/session" style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4, textDecoration:'none' }}>
              <div className="tab-cta-btn">＋</div>
-             <span className="tab-label" style={{ color:'var(--c-blue)' }}>记录</span>
+             <span className="tab-label" style={{ color:'var(--c-blue)' }}>训练</span>
            </Link>
          </div>
          {/* 计划 */}

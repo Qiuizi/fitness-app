@@ -5,6 +5,7 @@ import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
 import AddWorkout from './components/AddWorkout';
+import ActiveSession from './components/ActiveSession';
 import { ToastProvider } from './components/Toast';
 import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
@@ -73,6 +74,7 @@ const App = () => {
                 <Route path="/register" element={!token ? <Register /> : <Navigate to="/" />} />
                 <Route path="/" element={token ? <Dashboard /> : <Navigate to="/login" />} />
                 <Route path="/add" element={token ? <AddWorkout /> : <Navigate to="/login" />} />
+                <Route path="/session" element={token ? <ActiveSession /> : <Navigate to="/login" />} />
               </Routes>
             </ErrorBoundary>
           </div>
